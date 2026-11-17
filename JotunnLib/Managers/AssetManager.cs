@@ -297,7 +297,7 @@ namespace Jotunn.Managers
             uint u = (uint)asset.name.GetStableHashCode();
             return new AssetID(u, u, u, u);
         }
-        
+
         /// <summary>
         ///     Generates a unique AssetID, from a given string
         /// </summary>
