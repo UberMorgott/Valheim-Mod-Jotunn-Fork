@@ -1,3 +1,4 @@
 {
-  "baseline": "671c486ac8123a9b240eae80639b6c33f63b3884"
+  "baseline": "671c486ac8123a9b240eae80639b6c33f63b3884",
+  "env": { "CopyBuildTaskToLibraries": "false" }
 }
