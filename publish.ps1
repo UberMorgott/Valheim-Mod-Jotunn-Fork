@@ -42,8 +42,9 @@ if (Test-Path -Path "$pdb") {
     Invoke-Expression "& `"$(Get-Location)\libraries\Debug\pdb2mdb.exe`" `"$TargetPath\$TargetAssembly`""
 }
 
-# Debug copies the dll to Valheim
-if ($Target.Equals("Debug")) {
+# Debug copies the dll to Valheim -- fork: only on opt-in (env DeployToGame=true), so plain and
+# quality-gate builds never write into the game or dedicated server folder
+if ($Target.Equals("Debug") -and $env:DeployToGame -eq 'true') {
     if ($DeployPath.Equals("")){
       $DeployPath = "$ValheimPath\BepInEx\plugins"
     }
