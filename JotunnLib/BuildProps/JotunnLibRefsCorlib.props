@@ -196,7 +196,8 @@
       <HintPath>$(VALHEIM_MANAGED)/UnityEngine.PhysicsModule.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="UnityEngine.ProfilerModule">
+    <!-- fork: absent in current Valheim builds -->
+    <Reference Include="UnityEngine.ProfilerModule" Condition="Exists('$(VALHEIM_MANAGED)/UnityEngine.ProfilerModule.dll')">
       <HintPath>$(VALHEIM_MANAGED)/UnityEngine.ProfilerModule.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>

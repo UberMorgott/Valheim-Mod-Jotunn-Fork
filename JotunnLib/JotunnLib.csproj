@@ -21,6 +21,9 @@
     <RootNamespace>Jotunn</RootNamespace>
     <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
     <GenerateResourceNeverLockTypeAssemblies>true</GenerateResourceNeverLockTypeAssemblies>
+    <!-- fork: strip the checkout path from PDB/CodeView so every clone builds a byte-identical Jotunn.dll -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Unity\Assets\Plugins\**" />
