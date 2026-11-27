@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Jotunn.Entities;
 using Jotunn.Managers;
@@ -139,8 +139,7 @@ namespace Jotunn.Utils
         /// </summary>
         /// <param name="modGuid">GUID of the mod</param>
         /// <returns>An <see cref="IEnumerable{T}"/> of <see cref="CustomVegetation"/> from a specific mod</returns>
-        public static IEnumerable<CustomVegetation> GetVegetation(string modGuid) =>
-            ZoneManager.Instance.Vegetations.Values.Where(x => x.SourceMod.GUID.Equals(modGuid));
+        public static IEnumerable<CustomVegetation> GetVegetation(string modGuid) => GetVegetation().FilterByMod(modGuid);
 
         /// <summary>
         ///     Get all added <see cref="CustomClutter">CustomClutter</see>
@@ -196,7 +195,17 @@ namespace Jotunn.Utils
 
         private static IEnumerable<T> FilterByMod<T>(this IEnumerable<T> list, string modGuid) where T : CustomEntity
         {
-            return list.Where(x => x.SourceMod.GUID == modGuid);
+            var items = list as IList<T> ?? new List<T>(list);
+            var filtered = new List<T>();
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+                if (string.Equals(item.SourceMod.GUID, modGuid, System.StringComparison.Ordinal))
+                {
+                    filtered.Add(item);
+                }
+            }
+            return filtered;
         }
 
         /// <summary>

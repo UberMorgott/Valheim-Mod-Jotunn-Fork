@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using UnityEngine;
 using System.Reflection;
@@ -231,14 +231,10 @@ namespace Jotunn.Utils
         {
             if (resourceAssembly == null)
             {
-                throw new ArgumentNullException("Parameter resourceAssembly can not be null.");
+                throw new ArgumentNullException(nameof(resourceAssembly), "Parameter resourceAssembly can not be null.");
             }
 
-            string resourceName = null;
-            try
-            {
-                resourceName = resourceAssembly.GetManifestResourceNames().Single(str => str.EndsWith(bundleName));
-            } catch (Exception) { }
+            string resourceName = FindSingleManifestResource(resourceAssembly, bundleName);
 
             if (resourceName == null)
             {
@@ -275,14 +271,10 @@ namespace Jotunn.Utils
         {
             if (resourceAssembly == null)
             {
-                throw new ArgumentNullException("Parameter resourceAssembly can not be null.");
+                throw new ArgumentNullException(nameof(resourceAssembly), "Parameter resourceAssembly can not be null.");
             }
 
-            string resourceName = null;
-            try
-            {
-                resourceName = resourceAssembly.GetManifestResourceNames().Single(str => str.EndsWith(fileName));
-            } catch (Exception) { }
+            string resourceName = FindSingleManifestResource(resourceAssembly, fileName);
 
             if (resourceName == null)
             {
@@ -300,6 +292,31 @@ namespace Jotunn.Utils
             }
 
             return ret;
+        }
+
+        private static string FindSingleManifestResource(Assembly resourceAssembly, string suffix)
+        {
+            string match = null;
+            try
+            {
+                foreach (string name in resourceAssembly.GetManifestResourceNames())
+                {
+                    if (name.EndsWith(suffix))
+                    {
+                        if (match != null)
+                        {
+                            return null;
+                        }
+                        match = name;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            return match;
         }
 
         /// <summary>
@@ -329,7 +346,7 @@ namespace Jotunn.Utils
 
             return File.ReadAllText(absPath);
         }
-        
+
         /// <summary>
         ///     Loads a <see cref="Sprite"/> from a file path or an asset bundle (separated by <see cref="AssetBundlePathSeparator"/>)
         /// </summary>
@@ -351,7 +368,7 @@ namespace Jotunn.Utils
                 string bundlePath = parts[0];
                 string assetName = parts[1];
 
-                // TODO: This is very likely going to need some caching for asset bundles
+                // Note: Asset bundles loaded here are not cached
                 AssetBundle bundle = AssetBundle.LoadFromFile(bundlePath);
                 Sprite ret = bundle.LoadAsset<Sprite>(assetName);
                 bundle.Unload(false);
@@ -360,7 +377,7 @@ namespace Jotunn.Utils
 
             // Load texture and create sprite
             Texture2D texture = LoadTexture(path, false);
-            
+
             if (!texture)
             {
                 return null;

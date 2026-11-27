@@ -254,7 +254,8 @@ namespace Jotunn.Managers
             newObject.transform.SetSiblingIndex(siblingIndex);
         }
 
-        private static bool IsPersistent(GameObject parent) {
+        private static bool IsPersistent(GameObject parent)
+        {
             return (bool)Object_IsPersistent.Invoke(null, new object[] { parent });
         }
 
@@ -352,8 +353,10 @@ namespace Jotunn.Managers
                 var list = new List<Object>();
                 bool hasAnyMockResolved = false;
 
-                foreach (var unityObject in currentValues)
+                var valueList = currentValues as IList<Object> ?? new List<Object>(currentValues);
+                for (int i = 0; i < valueList.Count; i++)
                 {
+                    var unityObject = valueList[i];
                     var realPrefab = GetRealPrefabFromMock(unityObject, member.EnumeratedType);
                     list.Add(realPrefab ? realPrefab : unityObject);
                     hasAnyMockResolved = hasAnyMockResolved || realPrefab;
@@ -410,9 +413,10 @@ namespace Jotunn.Managers
                     return;
                 }
 
-                foreach (var value in currentValues)
+                var valueList = currentValues as IList<object> ?? new List<object>(currentValues);
+                for (int i = 0; i < valueList.Count; i++)
                 {
-                    FixReferences(value, depth);
+                    FixReferences(valueList[i], depth);
                 }
             }
             else if (member.IsClass && member.HasGetMethod)

@@ -239,10 +239,11 @@ namespace Jotunn
         )
         {
             var child = gameObject.transform;
+            var names = childNames as IList<string> ?? new List<string>(childNames);
 
-            foreach (string childName in childNames)
+            for (int i = 0; i < names.Count; i++)
             {
-                child = child.FindDeepChild(childName, searchType);
+                child = child.FindDeepChild(names[i], searchType);
 
                 if (!child)
                 {

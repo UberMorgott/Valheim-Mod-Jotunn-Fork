@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
@@ -137,13 +137,24 @@ namespace Jotunn.Managers
         /// <returns>Custom skill with given SkillType</returns>
         public Skills.SkillDef GetSkill(Skills.SkillType skillType)
         {
-            if (CustomSkills.ContainsKey(skillType))
+            if (CustomSkills.TryGetValue(skillType, out var customSkill))
             {
-                return CustomSkills[skillType].ToSkillDef();
+                return customSkill.ToSkillDef();
             }
 
-            return Player.m_localPlayer?.GetSkills()?.m_skills?
-                .FirstOrDefault(skill => skill.m_skill == skillType);
+            var skills = Player.m_localPlayer?.GetSkills()?.m_skills;
+            if (skills != null)
+            {
+                foreach (var skill in skills)
+                {
+                    if (skill.m_skill == skillType)
+                    {
+                        return skill;
+                    }
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -165,11 +176,11 @@ namespace Jotunn.Managers
         {
             if (CustomSkills.Count > 0)
             {
-                Logger.LogInfo($"Registering {CustomSkills.Count} custom skills");
+                Logger.LogInfo($"Registering {CustomSkills.Count.ToString()} custom skills");
 
                 foreach (var skill in CustomSkills.Values)
                 {
-                    LocalizationManager.Instance.JotunnLocalization.AddTranslation($"skill_{skill.UID}", skill.LocalizedName);
+                    LocalizationManager.Instance.JotunnLocalization.AddTranslation($"skill_{EnumNameCache.GetName(skill.UID, (int)skill.UID)}", skill.LocalizedName);
                     self.m_skills.Add(skill.ToSkillDef());
                     Logger.LogDebug($"Registered skill {skill.Name} | ID: {skill.Identifier}");
                 }
@@ -203,10 +214,10 @@ namespace Jotunn.Managers
 
                     skill.m_level += value;
                     skill.m_level = Mathf.Clamp(skill.m_level, 0f, 100f);
-                    self.m_player.Message(MessageHud.MessageType.TopLeft, $"Skill increased {localizedName}: {(int)skill.m_level}", 0, skill.m_info.m_icon);
+                    self.m_player.Message(MessageHud.MessageType.TopLeft, $"Skill increased {localizedName}: {((int)skill.m_level).ToString()}", 0, skill.m_info.m_icon);
 
-                    Console.instance.Print($"Skill {localizedName} = {skill.m_level}");
-                    Logger.LogDebug($"Raised skill {localizedName} to {skill.m_level}");
+                    Console.instance.Print($"Skill {localizedName} = {skill.m_level.ToString()}");
+                    Logger.LogDebug($"Raised skill {localizedName} to {skill.m_level.ToString()}");
 
                     return false;
                 }
@@ -244,18 +255,33 @@ namespace Jotunn.Managers
             AddSkillOptions("resetskill");
         }
 
+        private sealed class SkillOptionsFetcher
+        {
+            private readonly SkillManager manager;
+            private readonly Terminal.ConsoleOptionsFetcher inner;
+
+            public SkillOptionsFetcher(SkillManager manager, Terminal.ConsoleOptionsFetcher inner)
+            {
+                this.manager = manager;
+                this.inner = inner;
+            }
+
+            public List<string> Fetch()
+            {
+                List<string> options = inner();
+                foreach (var skill in manager.CustomSkills.Values)
+                {
+                    options.Add(skill.LocalizedName);
+                }
+                return options;
+            }
+        }
+
         private void AddSkillOptions(string commandName)
         {
             if (Terminal.commands.TryGetValue(commandName, out Terminal.ConsoleCommand command))
             {
-                var fetcher = command.m_tabOptionsFetcher;
-
-                command.m_tabOptionsFetcher = () =>
-                {
-                    List<string> options = fetcher();
-                    options.AddRange(CustomSkills.Values.Select(skill => skill.LocalizedName));
-                    return options;
-                };
+                command.m_tabOptionsFetcher = new SkillOptionsFetcher(this, command.m_tabOptionsFetcher).Fetch;
             }
             else
             {

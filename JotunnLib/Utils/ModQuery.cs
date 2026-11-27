@@ -85,7 +85,13 @@ namespace Jotunn.Utils
         {
             List<IModPrefab> prefabs = new List<IModPrefab>();
             prefabs.AddRange(Prefabs[modGuid].Values);
-            prefabs.AddRange(PrefabManager.Instance.Prefabs.Values.Where(x => x.SourceMod.GUID.Equals(modGuid)));
+            foreach (var prefab in PrefabManager.Instance.Prefabs.Values)
+            {
+                if (string.Equals(prefab.SourceMod.GUID, modGuid, StringComparison.Ordinal))
+                {
+                    prefabs.Add(prefab);
+                }
+            }
             return prefabs;
         }
 
@@ -107,9 +113,9 @@ namespace Jotunn.Utils
 
             foreach (var prefab in Prefabs)
             {
-                if (prefab.Value.ContainsKey(hash))
+                if (prefab.Value.TryGetValue(hash, out var modPrefab))
                 {
-                    return prefab.Value[hash];
+                    return modPrefab;
                 }
             }
 
@@ -153,8 +159,10 @@ namespace Jotunn.Utils
                 return;
             }
 
-            foreach (var patch in patches)
+            var patchList = patches as IList<Patch> ?? new List<Patch>(patches);
+            for (int i = 0; i < patchList.Count; i++)
             {
+                var patch = patchList[i];
                 if (patch.owner == Main.ModGuid)
                 {
                     continue;

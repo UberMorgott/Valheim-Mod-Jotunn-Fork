@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -39,7 +39,8 @@ namespace JotunnDoc.Docs
                 AddHeader(2, pair.Key);
                 AddTableHeader("Piece", "AssetID", "Token", "English Name", "Description", "Resources required", "Material Type", "Piece Category", "Hammer Categories");
 
-                foreach (GameObject obj in pair.Value.m_pieces.Where(x => PieceManager.Instance.GetPiece(x.name) == null))
+                var vanillaPieces = pair.Value.m_pieces.Where(x => PieceManager.Instance.GetPiece(x.name) == null).ToList();
+                foreach (GameObject obj in vanillaPieces)
                 {
                     Piece piece = obj.GetComponent<Piece>();
                     WearNTear wearNTear = obj.GetComponent<WearNTear>();
@@ -55,7 +56,7 @@ namespace JotunnDoc.Docs
 
                     foreach (Piece.Requirement req in piece.m_resources)
                     {
-                        resources += $"<li>{req.m_amount} {JotunnDoc.Localize(req?.m_resItem?.m_itemData?.m_shared?.m_name)}</li>";
+                        resources += $"<li>{req.m_amount.ToString()} {JotunnDoc.Localize(req?.m_resItem?.m_itemData?.m_shared?.m_name)}</li>";
                     }
 
                     resources += "</ul>";
@@ -67,8 +68,8 @@ namespace JotunnDoc.Docs
                         JotunnDoc.Localize(piece.m_name),
                         JotunnDoc.Localize(piece.m_description),
                         resources,
-                        wearNTear ? wearNTear.m_materialType.ToString() : string.Empty,
-                        piece.m_category.ToString(),
+                        wearNTear ? EnumName(wearNTear.m_materialType) : string.Empty,
+                        EnumName(piece.m_category),
                         string.Join(", ", GetUsageTagDisplayNames(piece.m_usage))
                     );
                 }
@@ -89,10 +90,15 @@ namespace JotunnDoc.Docs
 
         private static List<string> GetUsageTagDisplayNames(Piece.UsageTagFlags usageTags)
         {
-            return usageTagDisplayNames
-                .Where(entry => (usageTags & entry.Key) == entry.Key)
-                .Select(entry => Localization.instance.Localize(entry.Value))
-                .ToList();
+            var result = new List<string>();
+            foreach (var entry in usageTagDisplayNames)
+            {
+                if ((usageTags & entry.Key) == entry.Key)
+                {
+                    result.Add(Localization.instance.Localize(entry.Value));
+                }
+            }
+            return result;
         }
 
         private static string GetNameBox(string name, bool hasSprite)

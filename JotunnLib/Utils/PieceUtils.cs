@@ -16,7 +16,7 @@ namespace Jotunn.Utils
             }
             catch (Exception e)
             {
-                Logger.LogWarning($"Could not find Piece.PieceCategory {name}, using fallback value {fallback}");
+                Logger.LogWarning($"Could not find Piece.PieceCategory {name}, using fallback value {EnumNameCache.GetName(fallback, (int)fallback)}");
                 return fallback;
             }
         }

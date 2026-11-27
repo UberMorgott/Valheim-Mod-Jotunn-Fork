@@ -89,15 +89,16 @@ namespace Jotunn.Managers
                 }
             }
 
+            private static readonly MethodInfo DictStringAssetIDAdd = AccessTools.Method(typeof(Dictionary<string, AssetID>), nameof(Dictionary<string, AssetID>.Add));
+            private static readonly MethodInfo AddSafeMethod = AccessTools.Method(typeof(Patches), nameof(Patches.AddSafe));
+
             [HarmonyPatch(typeof(AssetBundleLoader), nameof(AssetBundleLoader.GetAllAssetPathsMappedToAssetID)), HarmonyTranspiler]
             private static IEnumerable<CodeInstruction> AssetBundleLoader_GetAllAssetPathsMappedToAssetID(IEnumerable<CodeInstruction> instructions)
             {
                 // replace pathsMappedToAssetId.Add() with our AddSafe()
-                MethodInfo addMethod = AccessTools.Method(typeof(Dictionary<string, AssetID>), nameof(Dictionary<string, AssetID>.Add));
-                MethodInfo addSafeMethod = AccessTools.Method(typeof(Patches), nameof(Patches.AddSafe));
                 return new CodeMatcher(instructions)
-                    .MatchForward(false, new CodeMatch(i => i.Calls(addMethod)))
-                    .SetInstruction(new CodeInstruction(OpCodes.Call, addSafeMethod))
+                    .MatchForward(false, new CodeMatch(i => i.Calls(DictStringAssetIDAdd)))
+                    .SetInstruction(new CodeInstruction(OpCodes.Call, AddSafeMethod))
                     .InstructionEnumeration();
             }
 
@@ -110,7 +111,7 @@ namespace Jotunn.Managers
                     {
                         if (!__instance.m_asset)
                         {
-                            Logger.LogWarning($"AssetLoader.m_asset == null for AssetID {__instance.m_assetID} at path {__instance.m_assetPathInBundle}, skipping mocking");
+                            Logger.LogWarning($"AssetLoader.m_asset == null for AssetID {__instance.m_assetID.ToString()} at path {__instance.m_assetPathInBundle}, skipping mocking");
                             return;
                         }
 
@@ -211,9 +212,25 @@ namespace Jotunn.Managers
         /// <param name="softReference">The <see cref="SoftReference{T}"/> to instantiate and resolve mocks for on load</param>
         /// <param name="parent">Optional transform under which the asset will be instantiated, otherwise a default container is used</param>
         /// <param name="resolveCallback">Adds a callback when the asset was resolved and instantiated</param>
+        private sealed class TypedResolveCallback<T> where T : Object
+        {
+            private readonly Action<T> callback;
+
+            public TypedResolveCallback(Action<T> callback)
+            {
+                this.callback = callback;
+            }
+
+            public void Invoke(Object asset)
+            {
+                callback?.Invoke(asset as T);
+            }
+        }
+
         public void ResolveMocksOnLoad<T>(SoftReference<T> softReference, Transform parent, Action<T> resolveCallback) where T : Object
         {
-            ResolveMocksOnLoad(softReference.m_assetID, parent, (asset) => resolveCallback?.Invoke(asset as T));
+            Action<Object> wrapped = resolveCallback != null ? new TypedResolveCallback<T>(resolveCallback).Invoke : (Action<Object>)null;
+            ResolveMocksOnLoad(softReference.m_assetID, parent, wrapped);
         }
 
         /// <summary>
@@ -255,18 +272,31 @@ namespace Jotunn.Managers
             assetBundleLoader.m_bundleLoaders = assetBundleLoader.m_bundleLoaders.AddItem(bundleLoader).ToArray();
 
             // copy dependencies from original prefab, if available
-            int originalBundleLoaderIndex = assetBundleLoader.m_assetLoaders.FirstOrDefault(l => l.m_assetID == assetRef.originalID).m_bundleLoaderIndex;
+            int originalBundleLoaderIndex = 0;
+            foreach (var assetLoader in assetBundleLoader.m_assetLoaders)
+            {
+                if (assetLoader.m_assetID == assetRef.originalID)
+                {
+                    originalBundleLoaderIndex = assetLoader.m_bundleLoaderIndex;
+                    break;
+                }
+            }
 
             if (assetRef.originalID.IsValid && originalBundleLoaderIndex > 0)
             {
                 BundleLoader originalBundleLoader = assetBundleLoader.m_bundleLoaders[originalBundleLoaderIndex];
-
-                bundleLoader.m_bundleLoaderIndicesOfThisAndDependencies = originalBundleLoader
-                    .m_bundleLoaderIndicesOfThisAndDependencies
-                    .Where(i => i != originalBundleLoaderIndex)
-                    .AddItem(assetBundleLoader.m_bundleNameToLoaderIndex[bundleName])
-                    .OrderBy(i => i)
-                    .ToArray();
+                var originalDeps = originalBundleLoader.m_bundleLoaderIndicesOfThisAndDependencies;
+                var deps = new List<int>(originalDeps.Length);
+                foreach (int idx in originalDeps)
+                {
+                    if (idx != originalBundleLoaderIndex)
+                    {
+                        deps.Add(idx);
+                    }
+                }
+                deps.Add(assetBundleLoader.m_bundleNameToLoaderIndex[bundleName]);
+                deps.Sort();
+                bundleLoader.m_bundleLoaderIndicesOfThisAndDependencies = deps.ToArray();
             }
             else
             {
@@ -408,8 +438,8 @@ namespace Jotunn.Managers
             foreach (var pair in Runtime.GetAllAssetPathsInBundleMappedToAssetID().ToList())
             {
                 string key = pair.Key.Split('/').Last();
-                string extenstion = key.Split('.').Last();
-                string asset = key.RemoveSuffix($".{extenstion}");
+                string extension = key.Split('.').Last();
+                string asset = key.RemoveSuffix($".{extension}");
 
                 if (pair.Key == "Assets/UI/prefabs/radials/elements/Hammer.prefab" ||
                     pair.Key == "Assets/UI/prefabs/Radial/elements/Hammer.prefab")
@@ -418,9 +448,9 @@ namespace Jotunn.Managers
                     continue;
                 }
 
-                Type type = Instance.TypeFromExtension(extenstion);
+                Type type = Instance.TypeFromExtension(extension);
 
-                if (type == null && extenstion == "asset" && key.StartsWith("Recipe_"))
+                if (type == null && extension == "asset" && key.StartsWith("Recipe_"))
                 {
                     type = typeof(Recipe);
                 }
@@ -430,17 +460,18 @@ namespace Jotunn.Managers
                     type = typeof(Object);
                 }
 
-                if (!nameToAssetID.ContainsKey(type))
+                if (!nameToAssetID.TryGetValue(type, out var typeMap))
                 {
-                    nameToAssetID.Add(type, new Dictionary<string, AssetID>());
+                    typeMap = new Dictionary<string, AssetID>();
+                    nameToAssetID.Add(type, typeMap);
                 }
 
-                if (nameToAssetID[type].ContainsKey(asset) && SkipAmbiguousPath(nameToFullPath[asset], pair.Key, extenstion))
+                if (typeMap.ContainsKey(asset) && SkipAmbiguousPath(nameToFullPath[asset], pair.Key, extension))
                 {
                     continue;
                 }
 
-                nameToAssetID[type][asset] = pair.Value;
+                typeMap[asset] = pair.Value;
                 nameToFullPath[asset] = pair.Key;
             }
 
@@ -476,7 +507,7 @@ namespace Jotunn.Managers
 
         private Type TypeFromExtension(string extension)
         {
-            switch (extension.ToLower())
+            switch (extension.ToLowerInvariant())
             {
                 case "prefab":
                     return typeof(GameObject);

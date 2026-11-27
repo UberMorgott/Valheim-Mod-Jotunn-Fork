@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Jotunn.Utils;
@@ -53,7 +53,7 @@ namespace Jotunn.Configs
         ///     Can either be the description you want to see in-game, or a localization token.
         /// </summary>
         public string Description { get; set; }
-        
+
         /// <summary>
         ///     The in-game icon for your skill. If null, will default to a "shield" icon.
         /// </summary>
@@ -105,7 +105,7 @@ namespace Jotunn.Configs
         /// <returns>String representation of the SkillConfig</returns>
         public override string ToString()
         {
-            return $"SkillConfig(Identifier='{Identifier}', UID={UID}, Name='{Name}')";
+            return $"SkillConfig(Identifier='{Identifier}', UID={EnumNameCache.GetName(UID, (int)UID)}, Name='{Name}')";
         }
 
         /// <summary>
@@ -125,9 +125,9 @@ namespace Jotunn.Configs
 
         internal bool IsFromName(string name)
         {
-            return string.Equals(Name, name, StringComparison.CurrentCultureIgnoreCase) ||
+            return string.Equals(Name, name, StringComparison.OrdinalIgnoreCase) ||
                 Identifier == name ||
-                string.Equals(Localization.instance.Localize(Name), name, StringComparison.CurrentCultureIgnoreCase);
+                string.Equals(Localization.instance.Localize(Name), name, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

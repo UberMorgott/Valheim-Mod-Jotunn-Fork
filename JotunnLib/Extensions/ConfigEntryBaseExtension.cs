@@ -1,4 +1,4 @@
-﻿// JotunnLib
+// JotunnLib
 // a Valheim mod
 // 
 // File:    ConfigEntryBaseExtension.cs
@@ -44,7 +44,7 @@ namespace Jotunn
             }
             return false;
         }
-        
+
         /// <summary>
         ///     Get bound button's name
         /// </summary>
@@ -90,7 +90,7 @@ namespace Jotunn
             {
                 return null;
             }
-            
+
             InputManager.ButtonToConfigDict.TryGetValue(configurationEntry, out var buttonConfig);
 
             return buttonConfig;
@@ -116,7 +116,6 @@ namespace Jotunn
         /// </summary>
         /// <param name="configurationEntry"></param>
         /// <param name="value"></param>
-        /// <returns></returns>
         internal static void SetLocalValue(this ConfigEntryBase configurationEntry, object value)
         {
             SynchronizationManager.Instance.localValues[configurationEntry] = value;

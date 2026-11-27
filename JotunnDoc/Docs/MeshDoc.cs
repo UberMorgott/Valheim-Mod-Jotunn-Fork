@@ -36,12 +36,14 @@ namespace JotunnDoc.Docs
 
             for (int i = 0; i < splitCount; i++)
             {
-                var chunk = allMeshes.Skip(i * chunkSize).Take(chunkSize);
+                int start = i * chunkSize;
+                int end = Math.Min(start + chunkSize, allMeshes.Count);
 
                 AddTableHeader("SoftReference Name", "Asset ID", "Internal Object Name");
 
-                foreach (var pair in chunk)
+                for (int j = start; j < end; j++)
                 {
+                    var pair = allMeshes[j];
                     AddMeshTableRow(pair.Key, pair.Value);
                 }
             }

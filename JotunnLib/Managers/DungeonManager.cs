@@ -243,7 +243,7 @@ namespace Jotunn.Managers
                 int stableHashCode = room.Name.GetStableHashCode();
                 if (hashToName.ContainsKey(stableHashCode))
                 {
-                    Logger.LogWarning($"Room {room.Name} is already registered with hash {stableHashCode}");
+                    Logger.LogWarning($"Room {room.Name} is already registered with hash {stableHashCode.ToString()}");
                 }
                 else
                 {
@@ -276,7 +276,7 @@ namespace Jotunn.Managers
                 hashToName.Clear();
 
                 List<string> toDelete = new List<string>();
-                Logger.LogInfo($"Registering {Rooms.Count} custom rooms");
+                Logger.LogInfo($"Registering {Rooms.Count.ToString()} custom rooms");
                 foreach (CustomRoom customRoom in Rooms.Values)
                 {
                     try
@@ -323,29 +323,30 @@ namespace Jotunn.Managers
                     Logger.LogDebug($"Found DungeonGeneratorTheme component in prefab with name {self.gameObject}");
                     Logger.LogDebug($"This dungeon generator has a custom theme = {proxy.m_themeName}, adding available rooms");
 
-                    var selectedRooms = Rooms.Values
-                        .Where(r => r.RoomData.m_enabled)
-                        .Where(r => r.ThemeName == proxy.m_themeName);
-
-                    foreach (var room in selectedRooms)
+                    foreach (var room in Rooms.Values)
                     {
-                        Logger.LogDebug($"Adding Room with name {room.Name} and theme {room.ThemeName}");
-                        DungeonGenerator.m_availableRooms.Add(room.RoomData);
+                        if (room.RoomData.m_enabled && room.ThemeName == proxy.m_themeName)
+                        {
+                            Logger.LogDebug($"Adding Room with name {room.Name} and theme {room.ThemeName}");
+                            DungeonGenerator.m_availableRooms.Add(room.RoomData);
+                        }
                     }
                 }
                 else if (self.m_themes != Room.Theme.None)
                 {
                     Logger.LogDebug($"No DungeonGeneratorTheme component in prefab with name {self.gameObject}");
-                    Logger.LogDebug($"Adding additional rooms of type {self.m_themes} to available rooms");
+                    Logger.LogDebug($"Adding additional rooms of type {EnumNameCache.GetFlagsName(self.m_themes, (int)self.m_themes)} to available rooms");
 
-                    var selectedRooms = Rooms.Values
-                        .Where(r => r.RoomData.m_enabled)
-                        .Where(r => Enum.TryParse(r.ThemeName, false, out Room.Theme theme) ? theme != Room.Theme.None && self.m_themes.HasFlag(theme) : false);
-
-                    foreach (var room in selectedRooms)
+                    foreach (var room in Rooms.Values)
                     {
-                        Logger.LogDebug($"Adding Room with name {room.Name} and theme {room.ThemeName}");
-                        DungeonGenerator.m_availableRooms.Add(room.RoomData);
+                        if (room.RoomData.m_enabled &&
+                            Enum.TryParse(room.ThemeName, false, out Room.Theme theme) &&
+                            theme != Room.Theme.None &&
+                            (self.m_themes & theme) == theme)
+                        {
+                            Logger.LogDebug($"Adding Room with name {room.Name} and theme {room.ThemeName}");
+                            DungeonGenerator.m_availableRooms.Add(room.RoomData);
+                        }
                     }
                 }
                 else

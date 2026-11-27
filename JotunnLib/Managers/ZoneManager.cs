@@ -139,7 +139,7 @@ namespace Jotunn.Managers
             List<Heightmap.Biome> biomes = new List<Heightmap.Biome>();
             foreach (Heightmap.Biome area in Enum.GetValues(typeof(Heightmap.Biome)))
             {
-                if ((biome & area) == 0)
+                if ((biome & area) == Heightmap.Biome.None)
                 {
                     continue;
                 }
@@ -254,7 +254,7 @@ namespace Jotunn.Managers
                 // The root prefab needs to be active, otherwise ZNetViews are not prepared correctly
                 customLocation.Prefab.SetActive(true);
             }
-            
+
             Locations.Add(customLocation.Name, customLocation);
             return true;
         }
@@ -268,7 +268,7 @@ namespace Jotunn.Managers
         {
             return Locations[name];
         }
-        
+
         /// <summary>
         ///     Get a ZoneLocation by its name.<br /><br />
         ///     Search hierarchy:
@@ -295,7 +295,7 @@ namespace Jotunn.Managers
 
             return null;
         }
-        
+
         /// <summary>
         ///     Create a CustomLocation that is a deep copy of the original.<br />
         ///     Changes will not affect the original. The CustomLocation is already registered in the manager.
@@ -315,7 +315,7 @@ namespace Jotunn.Managers
             baseZoneLocation.m_prefab.Release();
             return clonedLocation;
         }
-        
+
         /// <summary>
         ///     Remove a CustomLocation by its name.<br />
         ///     Removes the CustomLocation from the manager.
@@ -326,7 +326,7 @@ namespace Jotunn.Managers
         {
             return Locations.Remove(name);
         }
-        
+
         /// <summary>
         ///     Destroy a CustomLocation by its name.<br />
         ///     Removes the CustomLocation from the manager and from the <see cref="ZoneSystem"/> if instantiated.
@@ -393,11 +393,17 @@ namespace Jotunn.Managers
                 return customVegetation.Vegetation;
             }
 
-            return ZoneSystem.instance.m_vegetation
-                .DefaultIfEmpty(null)
-                .FirstOrDefault(zv => zv.m_prefab && zv.m_prefab.name == name);
+            foreach (var zv in ZoneSystem.instance.m_vegetation)
+            {
+                if (zv.m_prefab && zv.m_prefab.name == name)
+                {
+                    return zv;
+                }
+            }
+
+            return null;
         }
-        
+
         /// <summary>
         ///     Remove a CustomVegetation from this manager by its name.<br />
         ///     Does not remove it from any current ZoneSystem instance.
@@ -452,11 +458,17 @@ namespace Jotunn.Managers
                 return null;
             }
 
-            return ClutterSystem.instance.m_clutter
-                .DefaultIfEmpty(null)
-                .FirstOrDefault(zv => zv?.m_name == name);
+            foreach (var zv in ClutterSystem.instance.m_clutter)
+            {
+                if (zv?.m_name == name)
+                {
+                    return zv;
+                }
+            }
+
+            return null;
         }
-        
+
         /// <summary>
         ///     Remove a CustomClutter from this manager by its name.<br />
         ///     Does not remove it from any current ClutterSystem instance.
@@ -473,7 +485,7 @@ namespace Jotunn.Managers
 
             if (Clutter.Count > 0)
             {
-                Logger.LogInfo($"Injecting {Clutter.Count} custom clutter");
+                Logger.LogInfo($"Injecting {Clutter.Count.ToString()} custom clutter");
                 List<string> toDelete = new List<string>();
 
                 foreach (var customClutter in Clutter.Values)
@@ -513,7 +525,7 @@ namespace Jotunn.Managers
             {
                 List<string> toDelete = new List<string>();
 
-                Logger.LogInfo($"Injecting {Locations.Count} custom locations");
+                Logger.LogInfo($"Injecting {Locations.Count.ToString()} custom locations");
                 foreach (CustomLocation customLocation in Locations.Values)
                 {
                     try
@@ -557,7 +569,7 @@ namespace Jotunn.Managers
             {
                 List<string> toDelete = new List<string>();
 
-                Logger.LogInfo($"Injecting {Vegetations.Count} custom vegetation");
+                Logger.LogInfo($"Injecting {Vegetations.Count.ToString()} custom vegetation");
                 foreach (CustomVegetation customVegetation in Vegetations.Values)
                 {
                     try
@@ -617,13 +629,17 @@ namespace Jotunn.Managers
                 randomSpawn.Prepare();
             }
 
-            foreach (var znet in randomSpawns.SelectMany(x => x.m_childNetViews))
+            foreach (var randomSpawn in randomSpawns)
             {
-                RegisterUnknownPrefab(sourceMod, znet);
+                foreach (var znet in randomSpawn.m_childNetViews)
+                {
+                    RegisterUnknownPrefab(sourceMod, znet);
+                }
             }
         }
 
-        private static void RegisterUnknownPrefab(BepInPlugin sourceMod, ZNetView znet) {
+        private static void RegisterUnknownPrefab(BepInPlugin sourceMod, ZNetView znet)
+        {
             string prefabName = znet.GetPrefabName();
 
             if (prefabName.StartsWith(MockManager.JVLMockPrefix))

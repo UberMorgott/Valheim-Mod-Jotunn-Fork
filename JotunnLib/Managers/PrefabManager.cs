@@ -86,7 +86,8 @@ namespace Jotunn.Managers
             private static void RegisterAllToZNetScene() => Instance.RegisterAllToZNetScene();
 
             [HarmonyPatch(typeof(ObjectDB), nameof(ObjectDB.CopyOtherDB)), HarmonyPrefix, HarmonyPriority(Priority.Last)]
-            private static void InvokeOnVanillaObjectsAvailable(ObjectDB other) {
+            private static void InvokeOnVanillaObjectsAvailable(ObjectDB other)
+            {
                 Instance.MenuObjectDB = other;
                 Instance.InvokeOnVanillaObjectsAvailable();
             }
@@ -300,7 +301,7 @@ namespace Jotunn.Managers
 
             if (ZNetScene.instance)
             {
-                //TODO: remove all clones, too
+                // Note: Existing clones in the scene are not removed here
                 int hash = name.GetStableHashCode();
 
                 if (ZNetScene.instance.m_namedPrefabs.TryGetValue(hash, out var del))
@@ -325,9 +326,9 @@ namespace Jotunn.Managers
         /// </summary>
         private void RegisterAllToZNetScene()
         {
-            if (Prefabs.Any())
+            if (Prefabs.Count > 0)
             {
-                Logger.LogInfo($"Adding {Prefabs.Count} custom prefabs to the ZNetScene");
+                Logger.LogInfo($"Adding {Prefabs.Count.ToString()} custom prefabs to the ZNetScene");
 
                 List<CustomPrefab> toDelete = new List<CustomPrefab>();
 
@@ -378,7 +379,7 @@ namespace Jotunn.Managers
                 {
                     return;
                 }
-                
+
                 int hash = name.GetStableHashCode();
 
                 if (znet.m_namedPrefabs.ContainsKey(hash))
@@ -419,7 +420,7 @@ namespace Jotunn.Managers
             {
                 if (registeredTerrainOp != terrainOp)
                 {
-                    Logger.LogWarning($"TerrainOp prefab hash collision for {terrainOp.gameObject.name} ({hash})");
+                    Logger.LogWarning($"TerrainOp prefab hash collision for {terrainOp.gameObject.name} ({hash.ToString()})");
                 }
                 return;
             }

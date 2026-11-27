@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -15,7 +15,7 @@ namespace Jotunn.DebugUtils
         private ConfigEntry<Vector2> Position;
 
         private TwoColumnPanel Panel;
-        
+
         // Env
         private Text _envTimeValue;
 
@@ -24,7 +24,7 @@ namespace Jotunn.DebugUtils
         private Text _zoneAltitudeValue;
         private Text _zoneSectorValue;
         private Text _zoneZdoCountValue;
-        
+
         // Player
         private Text _debugModeValue;
         private Text _toolValue;
@@ -77,7 +77,7 @@ namespace Jotunn.DebugUtils
                 CreatePanel(self);
             }
         }
-        
+
         private void CreatePanel(Hud hud)
         {
             Panel =
@@ -93,7 +93,7 @@ namespace Jotunn.DebugUtils
                     .AddPanelRow("Hover", out _hoverValue)
                     .AddPanelRow("Key", out _keyValue)
                     .AddPanelRow("DebugMode", out _debugModeValue);
-            
+
             InvokeRepeating("LazyUpdate", 1.0f, 0.5f);
         }
 
@@ -208,23 +208,23 @@ namespace Jotunn.DebugUtils
             Vector3 position = Player.m_localPlayer.transform.position;
 
             _zonePositionValue.text =
-                    $"X <color=#ffe082>{position.x,-8:0}</color>\tZ <color=#a5d6a7>{position.z,-8:0}</color>\tY <color=#90caf9>{position.y,-8:0}</color>";
+                    $"X <color=#ffe082>{position.x.ToString("0").PadRight(8)}</color>\tZ <color=#a5d6a7>{position.z.ToString("0").PadRight(8)}</color>\tY <color=#90caf9>{position.y.ToString("0").PadRight(8)}</color>";
 
             float altitude = position.y - ZoneSystem.instance.m_waterLevel;
 
-            _zoneAltitudeValue.text = $"<color=#ffe082>{altitude:0}</color>";
+            _zoneAltitudeValue.text = $"<color=#ffe082>{altitude.ToString("0")}</color>";
 
             Vector2s sector = ZoneSystem.GetZone(position);
 
-            _zoneSectorValue.text = $"<color=#ffe082>{sector.x}</color>, <color=#a5d6a7>{sector.y}</color>";
+            _zoneSectorValue.text = $"<color=#ffe082>{sector.x.ToString()}</color>, <color=#a5d6a7>{sector.y.ToString()}</color>";
 
             int sectorIndex = (int)ZoneSystem.SectorToIndex(sector).Sector;
             long zdoCount =
                 sectorIndex >= 0 && ZDOMan.instance.m_objectsBySector[sectorIndex] != null
                     ? ZDOMan.instance.m_objectsBySector[sectorIndex].Count
                     : 0L;
-            
-            _zoneZdoCountValue.text = $"<color=#ffe082>{zdoCount}</color>";
+
+            _zoneZdoCountValue.text = $"<color=#ffe082>{zdoCount.ToString()}</color>";
         }
     }
 }

@@ -24,6 +24,22 @@ namespace Jotunn.Utils
         private static ServerVersionData LastServerVersionData = new ServerVersionData();
 
         private static readonly Dictionary<string, ZPackage> ClientVersions = new Dictionary<string, ZPackage>();
+        private static readonly object ErrorVersionArg = new[] { (int)ZNet.ConnectionStatus.ErrorVersion }.GetValue(0);
+
+        private sealed class DestroyTargetOnClick
+        {
+            private readonly GameObject target;
+
+            public DestroyTargetOnClick(GameObject target)
+            {
+                this.target = target;
+            }
+
+            public void Invoke()
+            {
+                Object.Destroy(target);
+            }
+        }
 
         internal static void Init()
         {
@@ -152,7 +168,7 @@ namespace Jotunn.Utils
                         string missingMods = string.Join(Environment.NewLine, GetEnforcableMods().Where(x => x.IsNeededOnClient()).Select(x => x.ModName));
                         Logger.LogWarning("Jötunn is not installed on the client. Server has mandatory mods, cancelling connection. " +
                                           "Mods that need to be installed on the client:" + Environment.NewLine + missingMods);
-                        rpc.Invoke("Error", (int)ZNet.ConnectionStatus.ErrorVersion);
+                        rpc.Invoke("Error", ErrorVersionArg);
                         return false;
                     }
                 }
@@ -166,7 +182,7 @@ namespace Jotunn.Utils
                         // Disconnect if mods are not network compatible
                         Logger.LogWarning("RPC_PeerInfo: Disconnecting modded client with incompatible version message. " +
                                           "Mods are not compatible");
-                        rpc.Invoke("Error", (int)ZNet.ConnectionStatus.ErrorVersion);
+                        rpc.Invoke("Error", ErrorVersionArg);
                         return false;
                     }
                 }
@@ -195,7 +211,7 @@ namespace Jotunn.Utils
                     // Disconnect if mods are not network compatible
                     Logger.LogWarning("RPC_Jotunn_ReceiveVersionData: Disconnecting modded client with incompatible version message. " +
                                       "Mods are not compatible");
-                    sender.Invoke("Error", (int)ZNet.ConnectionStatus.ErrorVersion);
+                    sender.Invoke("Error", ErrorVersionArg);
                 }
             }
             else
@@ -203,7 +219,7 @@ namespace Jotunn.Utils
                 LastServerVersionData = new ServerVersionData(data);
             }
         }
-        
+
         /// <summary>
         ///     Compares version data on server and client.
         /// </summary>
@@ -248,7 +264,8 @@ namespace Jotunn.Utils
             bool legacyDataLayout = Mathf.Min(serverData.ModModuleDataLayout, clientData.ModModuleDataLayout) == ModModule.LegacyDataLayoutVersion;
 
             // Check versions
-            foreach (var serverModule in FindLowerVersionMods(serverData, clientData).Union(FindHigherVersionMods(serverData, clientData)))
+            var mismatchedMods = FindLowerVersionMods(serverData, clientData).Union(FindHigherVersionMods(serverData, clientData)).ToList();
+            foreach (var serverModule in mismatchedMods)
             {
                 var clientModule = clientData.FindModule(serverModule, legacyDataLayout);
                 Logger.LogWarning($"Mod version mismatch {serverModule.ModName}: Server {serverModule.Version}, Client {clientModule.Version}");
@@ -317,7 +334,7 @@ namespace Jotunn.Utils
             compatWindow.transform.localScale = Vector3.one;
 
             compatWindow.UpdateTextPositions();
-            compatWindow.continueButton.onClick.AddListener(() => Object.Destroy(compatWindow.gameObject));
+            compatWindow.continueButton.onClick.AddListener(new DestroyTargetOnClick(compatWindow.gameObject).Invoke);
             compatWindow.logFileButton.onClick.AddListener(OpenLogFile);
             compatWindow.troubleshootingButton.onClick.AddListener(OpenTroubleshootingPage);
             compatWindow.scrollRect.verticalNormalizedPosition = 1f;
@@ -384,7 +401,7 @@ namespace Jotunn.Utils
             if (serverData.NetworkVersion > clientData.NetworkVersion)
             {
                 return ColoredLine(Color.red, "$mod_compat_header_valheim_version") +
-                       ColoredLine(GUIManager.Instance.ValheimOrange, "$mod_compat_valheim_version_error_description", $"{serverData.NetworkVersion}", $"{clientData.NetworkVersion}") +
+                       ColoredLine(GUIManager.Instance.ValheimOrange, "$mod_compat_valheim_version_error_description", serverData.NetworkVersion.ToString(), clientData.NetworkVersion.ToString()) +
                        ColoredLine(Color.white, "$mod_compat_valheim_version_upgrade") +
                        Environment.NewLine;
             }
@@ -392,7 +409,7 @@ namespace Jotunn.Utils
             if (serverData.NetworkVersion < clientData.NetworkVersion)
             {
                 return ColoredLine(Color.red, "$mod_compat_header_valheim_version") +
-                       ColoredLine(GUIManager.Instance.ValheimOrange, "$mod_compat_valheim_version_error_description", $"{serverData.NetworkVersion}", $"{clientData.NetworkVersion}") +
+                       ColoredLine(GUIManager.Instance.ValheimOrange, "$mod_compat_valheim_version_error_description", serverData.NetworkVersion.ToString(), clientData.NetworkVersion.ToString()) +
                        ColoredLine(Color.white, "$mod_compat_valheim_version_downgrade") +
                        Environment.NewLine;
             }
@@ -518,7 +535,8 @@ namespace Jotunn.Utils
         /// <returns></returns>
         internal static IEnumerable<ModModule> GetEnforcableMods()
         {
-            foreach (var plugin in BepInExUtils.GetDependentPlugins(true).OrderBy(x => x.Key))
+            var sortedPlugins = BepInExUtils.GetDependentPlugins(true).OrderBy(x => x.Key).ToList();
+            foreach (var plugin in sortedPlugins)
             {
                 var networkCompatibilityAttribute = plugin.Value.GetNetworkCompatibilityAttribute();
 

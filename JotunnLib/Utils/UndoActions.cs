@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Jotunn.Managers;
@@ -84,8 +84,8 @@ namespace Jotunn.Utils
                 if (data.Length == 1) return Name(data.First());
                 var names = data.GroupBy(Name);
                 var enumerable = names as IGrouping<string, ZDO>[] ?? names.ToArray();
-                if (enumerable.Length == 1) return $"{enumerable.First().Key} {enumerable.First().Count()}x";
-                return $" objects {data.Length}x";
+                if (enumerable.Length == 1) return $"{enumerable.First().Key} {enumerable.First().Count().ToString()}x";
+                return $" objects {data.Length.ToString()}x";
             }
 
             public static ZDO[] Remove(ZDO[] toRemove)
@@ -173,7 +173,7 @@ namespace Jotunn.Utils
                 return CloneBinarySearchDictionary(dict.GetValueOrDefaultPiktiv(id, new BinarySearchDictionary<TKey, TValue>()));
             }
         }
-        
+
         /// <summary>
         ///     "Create" action for the <see cref="UndoManager"/>. Can undo and redo ZDO creation.
         /// </summary>
@@ -192,7 +192,7 @@ namespace Jotunn.Utils
             {
                 Data = UndoHelper.Clone(data);
             }
-            
+
             /// <summary>
             ///     Description of the executed action.
             /// </summary>
@@ -205,12 +205,12 @@ namespace Jotunn.Utils
             {
                 Data = UndoHelper.Remove(Data);
             }
-            
+
             /// <summary>
             ///     Success message.
             /// </summary>
             public string UndoMessage() => $"Undo: Removed {UndoHelper.Print(Data)}";
-            
+
             /// <summary>
             ///     Recreate stored ZDOs again.
             /// </summary>
@@ -218,13 +218,13 @@ namespace Jotunn.Utils
             {
                 Data = UndoHelper.Place(Data);
             }
-            
+
             /// <summary>
             ///     Success message.
             /// </summary>
             public string RedoMessage() => $"Redo: Restored {UndoHelper.Print(Data)}";
         }
-        
+
         /// <summary>
         ///     "Remove" action for the <see cref="UndoManager"/>. Can undo and redo ZDO removal.
         /// </summary>
@@ -234,7 +234,7 @@ namespace Jotunn.Utils
             ///     Current ZDO data of this action.
             /// </summary>
             public ZDO[] Data;
-            
+
             /// <summary>
             ///     Create new undo data for ZDO removal operations. Clones all ZDO data to prevent NREs.
             /// </summary>
@@ -243,7 +243,7 @@ namespace Jotunn.Utils
             {
                 Data = UndoHelper.Clone(data);
             }
-            
+
             /// <summary>
             ///     Description of the executed action.
             /// </summary>
@@ -256,12 +256,12 @@ namespace Jotunn.Utils
             {
                 Data = UndoHelper.Place(Data);
             }
-            
+
             /// <summary>
             ///     Success message.
             /// </summary>
             public string UndoMessage() => $"Undo: Restored {UndoHelper.Print(Data)}";
-            
+
             /// <summary>
             ///     Remove stored ZDOs again.
             /// </summary>
@@ -269,7 +269,7 @@ namespace Jotunn.Utils
             {
                 Data = UndoHelper.Remove(Data);
             }
-            
+
             /// <summary>
             ///     Success message.
             /// </summary>
@@ -332,7 +332,7 @@ namespace Jotunn.Utils
             /// </summary>
             public PaintUndoData[] Paints = new PaintUndoData[0];
         }
-        
+
         /// <summary>
         ///     "Terrain" action for the <see cref="UndoManager"/>. Can undo and redo terrain modifications.
         /// </summary>
@@ -357,7 +357,7 @@ namespace Jotunn.Utils
                 Position = position;
                 Radius = radius;
             }
-            
+
             /// <summary>
             ///     Description of the executed action.
             /// </summary>
@@ -375,7 +375,7 @@ namespace Jotunn.Utils
             ///     Success message.
             /// </summary>
             public string UndoMessage() => "Undoing terrain changes";
-            
+
             /// <summary>
             ///     Sets terrain data to the stored values of the "after" state.
             /// </summary>
@@ -383,7 +383,7 @@ namespace Jotunn.Utils
             {
                 UndoHelper.ApplyData(After, Position, Radius);
             }
-            
+
             /// <summary>
             ///     Success message.
             /// </summary>

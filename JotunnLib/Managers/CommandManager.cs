@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -59,6 +59,21 @@ namespace Jotunn.Managers
             private static void ConsoleCommand_GetTabOptions(Terminal.ConsoleCommand __instance, ref List<string> __result) => Instance.ConsoleCommand_GetTabOptions(__instance, ref __result);
         }
 
+        private sealed class ConsoleCommandRunner
+        {
+            private readonly ConsoleCommand command;
+
+            public ConsoleCommandRunner(ConsoleCommand command)
+            {
+                this.command = command;
+            }
+
+            public void Run(Terminal.ConsoleEventArgs args)
+            {
+                command.Run(args.Args.Skip(1).ToArray(), args.Context);
+            }
+        }
+
         /// <summary>
         ///     Adds a new console command to Valheim.
         /// </summary>
@@ -66,10 +81,13 @@ namespace Jotunn.Managers
         public void AddConsoleCommand(ConsoleCommand cmd)
         {
             // Cannot have two commands with same name
-            if (_customCommands.Exists(c => c.Name == cmd.Name))
+            foreach (var existing in _customCommands)
             {
-                Logger.LogWarning(cmd.SourceMod, $"Cannot have two console commands with same name: {cmd.Name}");
-                return;
+                if (existing.Name == cmd.Name)
+                {
+                    Logger.LogWarning(cmd.SourceMod, $"Cannot have two console commands with same name: {cmd.Name}");
+                    return;
+                }
             }
 
             // Cannot have command with space in it
@@ -84,9 +102,9 @@ namespace Jotunn.Managers
 
         private void AddCustomCommands(Console self)
         {
-            if (_customCommands.Any())
+            if (_customCommands.Count > 0)
             {
-                Logger.LogInfo($"Adding {_customCommands.Count} commands to the Console");
+                Logger.LogInfo($"Adding {_customCommands.Count.ToString()} commands to the Console");
 
                 foreach (var cmd in _customCommands)
                 {
@@ -130,7 +148,7 @@ namespace Jotunn.Managers
                 {
                     command.Name,
                     command.Help,
-                    (Terminal.ConsoleEvent)((args) => command.Run(args.Args.Skip(1).ToArray(), args.Context)),
+                    (Terminal.ConsoleEvent)new ConsoleCommandRunner(command).Run,
                     command.IsCheat,
                     command.IsNetwork,
                     command.OnlyServer,
@@ -154,7 +172,6 @@ namespace Jotunn.Managers
         /// </summary>
         /// <param name="self"></param>
         /// <param name="result"></param>
-        /// <returns></returns>
         private void ConsoleCommand_GetTabOptions(Terminal.ConsoleCommand self, ref List<string> result)
         {
             if (self.m_tabOptions == null && self.m_tabOptionsFetcher != null)

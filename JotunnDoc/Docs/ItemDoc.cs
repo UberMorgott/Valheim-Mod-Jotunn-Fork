@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -39,13 +39,14 @@ namespace JotunnDoc.Docs
 
             for (int i = 0; i < splitCount; i++)
             {
-                var chunk = allItems.Skip(i * chunkSize).Take(chunkSize);
+                int start = i * chunkSize;
+                int end = Math.Min(start + chunkSize, allItems.Count);
 
                 AddTableHeader("Item", "AssetID", "Token", "English Name", "Type", "Description");
 
-                foreach (GameObject obj in chunk)
+                for (int j = start; j < end; j++)
                 {
-                    AddItemTableRow(obj, imageDirectory);
+                    AddItemTableRow(allItems[j], imageDirectory);
                 }
             }
 
@@ -65,7 +66,7 @@ namespace JotunnDoc.Docs
                 AssetManager.Instance.GetAssetID<GameObject>(obj.name).ToString(),
                 shared.m_name,
                 JotunnDoc.Localize(shared.m_name),
-                shared.m_itemType.ToString(),
+                EnumName(shared.m_itemType),
                 JotunnDoc.Localize(shared.m_description));
         }
 

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Jotunn.Entities
 {
@@ -43,7 +43,7 @@ namespace Jotunn.Entities
         /// <param name="args">The arguments the user types, with spaces being the delimiter.</param>
         public virtual void Run(string[] args)
         {
-            
+
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace Jotunn.Entities
             // so we call the one without context one for backward compatibility
             Run(args);
         }
-        
+
         /// <summary>
         ///     Override this function to return a list of strings that are valid options for your command
         /// </summary>
@@ -72,7 +72,7 @@ namespace Jotunn.Entities
         /// <inheritdoc/>
         public override string ToString()
         {
-            return Name.ToLower();
+            return Name.ToLowerInvariant();
         }
     }
 }

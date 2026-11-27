@@ -1,4 +1,5 @@
-﻿using System.Linq;
+using System;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using Jotunn.Managers;
@@ -26,13 +27,13 @@ namespace Jotunn.DebugUtils
             {
                 Logger.LogDebug("Trying to identify UnityExplorer");
 
-                var plugin = FindObjectsOfType(typeof(BaseUnityPlugin)).Cast<BaseUnityPlugin>().ToArray()
+                var plugin = FindObjectsOfType<BaseUnityPlugin>()
                     .FirstOrDefault(x => x.Info?.Metadata?.GUID == "com.sinai.unityexplorer");
-                
+
                 // legacy
                 UnityExplorer = plugin?.gameObject.scene.GetRootGameObjects()
-                    .FirstOrDefault(x => x.name.Equals("UnityExplorer"));
-                
+                    .FirstOrDefault(x => x.name.Equals("UnityExplorer", StringComparison.Ordinal));
+
                 // 4.4.0 and up
                 if (!UnityExplorer)
                 {

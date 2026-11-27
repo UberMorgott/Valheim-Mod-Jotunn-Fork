@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Text;
 using Jotunn.Managers;
 using JotunnDoc.Patches;
@@ -29,7 +29,8 @@ namespace JotunnDoc.Docs
 
             var shaders = PrefabManager.Cache.GetPrefabs(typeof(Shader)).Values;
 
-            foreach (Shader shady in shaders.OrderBy(x => x.name))
+            var sortedShaders = shaders.OrderBy(x => x.name).ToList();
+            foreach (Shader shady in sortedShaders)
             {
                 StringBuilder propsb = new StringBuilder();
 

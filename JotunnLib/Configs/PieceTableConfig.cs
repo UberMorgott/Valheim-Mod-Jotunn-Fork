@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Jotunn.Utils;
 using UnityEngine;
@@ -55,7 +55,7 @@ namespace Jotunn.Configs
             {
                 for (int i = 0; i < (int)PieceUtils.VanillaMaxPieceCategory; i++)
                 {
-                    categories.Add(Enum.GetName(typeof(Piece.PieceCategory), i));
+                    categories.Add(EnumNameCache.GetNameOrNull((Piece.PieceCategory)i));
                 }
             }
 

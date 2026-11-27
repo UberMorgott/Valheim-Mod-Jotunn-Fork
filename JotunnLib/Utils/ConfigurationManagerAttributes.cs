@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
@@ -227,45 +227,61 @@ public sealed class ConfigurationManagerAttributes
                     if (attrType.Name == "ConfigurationManagerAttributes")
                     {
                         var otherFields = attrType.GetFields(BindingFlags.Instance | BindingFlags.Public);
-                        foreach (var propertyPair in _myProperties.Join(otherFields, my => my.Name, other => other.Name, (my, other) => new { my, other }))
+                        foreach (var my in _myProperties)
                         {
-                            try
+                            foreach (var other in otherFields)
                             {
-                                var val = propertyPair.other.GetValue(attrib);
-                                if (val != null)
+                                if (my.Name != other.Name)
                                 {
-                                    // Handle delegate covariance not working when using reflection by manually converting the delegate
-                                    if (propertyPair.my.PropertyType != propertyPair.other.FieldType && typeof(Delegate).IsAssignableFrom(propertyPair.my.PropertyType))
-                                        val = Delegate.CreateDelegate(propertyPair.my.PropertyType, ((Delegate)val).Target, ((Delegate)val).Method);
-
-                                    propertyPair.my.SetValue(this, val, null);
+                                    continue;
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                Jotunn.Logger.LogWarning($"Failed to copy value {propertyPair.my.Name} from provided tag object {attrType.FullName} - " + ex.Message);
+
+                                try
+                                {
+                                    var val = other.GetValue(attrib);
+                                    if (val != null)
+                                    {
+                                        // Handle delegate covariance not working when using reflection by manually converting the delegate
+                                        if (my.PropertyType != other.FieldType && typeof(Delegate).IsAssignableFrom(my.PropertyType))
+                                            val = Delegate.CreateDelegate(my.PropertyType, ((Delegate)val).Target, ((Delegate)val).Method);
+
+                                        my.SetValue(this, val, null);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Jotunn.Logger.LogWarning($"Failed to copy value {my.Name} from provided tag object {attrType.FullName} - " + ex.Message);
+                                }
                             }
                         }
 
                         // this is not done in the ConfigurationManager, is it even needed?
                         // https://github.com/BepInEx/BepInEx.ConfigurationManager/blob/master/ConfigurationManager/SettingEntryBase.cs
-                        foreach (var fieldPair in _myFields.Join(otherFields, my => my.Name, other => other.Name, (my, other) => new { my, other }))
+                        foreach (var my in _myFields)
                         {
-                            try
+                            foreach (var other in otherFields)
                             {
-                                var val = fieldPair.other.GetValue(attrib);
-                                if (val != null)
+                                if (my.Name != other.Name)
                                 {
-                                    // Handle delegate covariance not working when using reflection by manually converting the delegate
-                                    if (fieldPair.my.FieldType != fieldPair.other.FieldType && typeof(Delegate).IsAssignableFrom(fieldPair.my.FieldType))
-                                        val = Delegate.CreateDelegate(fieldPair.my.FieldType, ((Delegate)val).Target, ((Delegate)val).Method);
-
-                                    fieldPair.my.SetValue(this, val);
+                                    continue;
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                Jotunn.Logger.LogWarning($"Failed to copy value {fieldPair.my.Name} from provided tag object {attrType.FullName} - " + ex.Message);
+
+                                try
+                                {
+                                    var val = other.GetValue(attrib);
+                                    if (val != null)
+                                    {
+                                        // Handle delegate covariance not working when using reflection by manually converting the delegate
+                                        if (my.FieldType != other.FieldType && typeof(Delegate).IsAssignableFrom(my.FieldType))
+                                            val = Delegate.CreateDelegate(my.FieldType, ((Delegate)val).Target, ((Delegate)val).Method);
+
+                                        my.SetValue(this, val);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Jotunn.Logger.LogWarning($"Failed to copy value {my.Name} from provided tag object {attrType.FullName} - " + ex.Message);
+                                }
                             }
                         }
 

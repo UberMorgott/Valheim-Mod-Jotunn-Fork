@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -73,6 +73,8 @@ namespace TestMod
         private static ConfigFile customConfig;
         private static ConfigEntry<int> serverValueCustomConfig;
         private static ConfigEntry<int> clientValueCustomConfig;
+        private KitbashObject OdinStatueKitbash;
+        private readonly Dictionary<ConfigEntryBase, CustomPiece> CategorySettings = new Dictionary<ConfigEntryBase, CustomPiece>();
 
         private static Harmony harmony;
 
@@ -123,7 +125,7 @@ namespace TestMod
 
             // Create a custom item with rendered icons
             PrefabManager.OnVanillaPrefabsAvailable += AddItemsWithRenderedIcons;
-            
+
             // Create pieces with shaders available and custom categories
             PrefabManager.OnVanillaPrefabsAvailable += AddPieceCategories;
 
@@ -273,7 +275,7 @@ namespace TestMod
                         go.GetComponent<Humanoid>().m_leftItem = shield;
                     }
 
-                    Jotunn.Logger.LogMessage($"Rolled sword {swordrand} shield {shieldrand}");
+                    Jotunn.Logger.LogMessage($"Rolled sword {swordrand.ToString()} shield {shieldrand.ToString()}");
                 }
             }
         }
@@ -378,15 +380,17 @@ namespace TestMod
                 RectTransform viewport =
                     scrollView.transform.Find("Scroll View/Viewport/Content") as RectTransform;
 
-                foreach (var mod in ModRegistry.GetMods(true).OrderBy(x => x.GUID))
+                var mods = ModRegistry.GetMods(true).OrderBy(x => x.GUID).ToList();
+                foreach (var mod in mods)
                 {
                     // Mod GUID
                     GUIManager.Instance.CreateText(mod.GUID,
                         viewport, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, 0f),
                         GUIManager.Instance.AveriaSerifBold, 30, GUIManager.Instance.ValheimOrange,
                         true, Color.black, 650f, 40f, false);
-                    
-                    if (mod.Prefabs.Any())
+
+                    var prefabs = mod.Prefabs.ToList();
+                    if (prefabs.Count > 0)
                     {
                         // Prefabs title
                         GUIManager.Instance.CreateText("Prefabs:",
@@ -394,7 +398,7 @@ namespace TestMod
                             GUIManager.Instance.AveriaSerifBold, 20, GUIManager.Instance.ValheimOrange,
                             true, Color.black, 650f, 30f, false);
 
-                        foreach (var prefab in mod.Prefabs)
+                        foreach (var prefab in prefabs)
                         {
                             GUIManager.Instance.CreateText($"{prefab}",
                                 viewport, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, 0f),
@@ -403,7 +407,8 @@ namespace TestMod
                         }
                     }
 
-                    if (mod.Pieces.Any())
+                    var pieces = mod.Pieces.ToList();
+                    if (pieces.Count > 0)
                     {
                         // Pieces title
                         GUIManager.Instance.CreateText("Pieces:",
@@ -411,7 +416,7 @@ namespace TestMod
                             GUIManager.Instance.AveriaSerifBold, 20, GUIManager.Instance.ValheimOrange,
                             true, Color.black, 650f, 30f, false);
 
-                        foreach (var piece in mod.Pieces)
+                        foreach (var piece in pieces)
                         {
                             // Piece name
                             GUIManager.Instance.CreateText($"{piece}",
@@ -421,7 +426,8 @@ namespace TestMod
                         }
                     }
 
-                    if (mod.Items.Any())
+                    var items = mod.Items.ToList();
+                    if (items.Count > 0)
                     {
                         // Items title
                         GUIManager.Instance.CreateText("Items:",
@@ -429,7 +435,7 @@ namespace TestMod
                             GUIManager.Instance.AveriaSerifBold, 20, GUIManager.Instance.ValheimOrange,
                             true, Color.black, 650f, 30f, false);
 
-                        foreach (var item in mod.Items)
+                        foreach (var item in items)
                         {
                             // Item name
                             GUIManager.Instance.CreateText($"{item}",
@@ -439,7 +445,8 @@ namespace TestMod
                         }
                     }
 
-                    if (mod.Commands.Any())
+                    var commands = mod.Commands.ToList();
+                    if (commands.Count > 0)
                     {
                         // Commands title
                         GUIManager.Instance.CreateText("Commands:",
@@ -447,7 +454,7 @@ namespace TestMod
                             GUIManager.Instance.AveriaSerifBold, 20, GUIManager.Instance.ValheimOrange,
                             true, Color.black, 650f, 30f, false);
 
-                        foreach (var command in mod.Commands)
+                        foreach (var command in commands)
                         {
                             // Command name
                             GUIManager.Instance.CreateText($"{command.Name}: {command.Help}",
@@ -646,12 +653,13 @@ namespace TestMod
                     return;
                 }
 
-                switch (args[0]) {
+                switch (args[0])
+                {
                     case "server":
-                        Console.instance.Print($"Server value: {serverValueCustomConfig.Value}");
+                        Console.instance.Print($"Server value: {serverValueCustomConfig.Value.ToString()}");
                         break;
                     case "client":
-                        Console.instance.Print($"Client value: {clientValueCustomConfig.Value}");
+                        Console.instance.Print($"Client value: {clientValueCustomConfig.Value.ToString()}");
                         break;
                     default:
                         Console.instance.Print("Invalid option");
@@ -1219,11 +1227,8 @@ namespace TestMod
                         },
                     }
                 });
-                kitbashObject.OnKitbashApplied += () =>
-                {
-                    // We've added a CapsuleCollider to the skeleton, this is no longer needed
-                    Object.Destroy(kitbashObject.Prefab.transform.Find("new/pivot/default").GetComponent<MeshCollider>());
-                };
+                OdinStatueKitbash = kitbashObject;
+                kitbashObject.OnKitbashApplied += OnOdinStatueKitbashApplied;
                 PieceManager.Instance.AddPiece(
                     new CustomPiece(kitbashObject.Prefab, fixReference: false,
                         new PieceConfig
@@ -1242,11 +1247,26 @@ namespace TestMod
             }
         }
 
+        private void OnOdinStatueKitbashApplied()
+        {
+            // We've added a CapsuleCollider to the skeleton, this is no longer needed
+            Object.Destroy(OdinStatueKitbash.Prefab.transform.Find("new/pivot/default").GetComponent<MeshCollider>());
+        }
+
         private void AddCategorySetting(CustomPiece piece)
         {
             var cat = Config.Bind("PieceCategories", piece.PiecePrefab.name, piece.Category);
             piece.Category = cat.Value;
-            cat.SettingChanged += (_1, _2) => piece.Category = cat.Value;
+            CategorySettings[cat] = piece;
+            cat.SettingChanged += OnCategorySettingChanged;
+        }
+
+        private void OnCategorySettingChanged(object sender, EventArgs e)
+        {
+            if (sender is ConfigEntry<string> cat && CategorySettings.TryGetValue(cat, out var piece))
+            {
+                piece.Category = cat.Value;
+            }
         }
 
         // Add custom pieces from an "empty" prefab with new piece categories
@@ -1418,12 +1438,12 @@ namespace TestMod
                 {
                     Name = "$lulz_shield",
                     Description = "$lulz_shield_desc",
-                    Icons = new []
+                    Icons = new[]
                     {
                         var1, var2
                     },
                     StyleTex = styleTex,
-                    Requirements = new []
+                    Requirements = new[]
                     {
                         new RequirementConfig("Wood", 1)
                     }
@@ -1471,12 +1491,12 @@ namespace TestMod
                 {
                     Name = "Lulz Cape",
                     Description = "Lulz to the rescue",
-                    Icons = new []
+                    Icons = new[]
                     {
                         var1, var2, var3, var4
                     },
                     StyleTex = styleTex,
-                    Requirements = new []
+                    Requirements = new[]
                     {
                         new RequirementConfig("Wood", 1)
                     }
@@ -1488,12 +1508,12 @@ namespace TestMod
                 {
                     Name = "Lulz Armor",
                     Description = "Lol, that hit",
-                    Icons = new []
+                    Icons = new[]
                     {
                         var1, var2, var3, var4
                     },
                     StyleTex = styleTexArmor,
-                    Requirements = new []
+                    Requirements = new[]
                     {
                         new RequirementConfig("Wood", 1)
                     }
@@ -1673,7 +1693,7 @@ namespace TestMod
 
             // Not unregistering this hook, it needs to run every world load
         }
-        
+
         // Add custom made creatures using world spawns and drop lists
         private void AddCustomCreaturesAndSpawns()
         {
@@ -1689,10 +1709,10 @@ namespace TestMod
 
                 // Load and create a custom animal creature
                 CreateAnimalCreature(creaturesAssetBundle, lulztex);
-                
+
                 // Load and create a custom monster creature
                 CreateMonsterCreature(creaturesAssetBundle, lulztex);
-                
+
                 // Add localization for all stuff added
                 Localization.AddTranslation("English", new Dictionary<string, string>
                 {
@@ -1735,7 +1755,7 @@ namespace TestMod
             // Add to the ItemManager
             ItemManager.Instance.AddItem(lulzItem);
         }
-        
+
         private void CreateAnimalCreature(AssetBundle creaturesAssetBundle, Texture2D lulztex)
         {
             // Load creature prefab from AssetBundle
@@ -1779,7 +1799,7 @@ namespace TestMod
             // Add it to the manager
             CreatureManager.Instance.AddCreature(new CustomCreature(lulzAnimalPrefab, false, lulzAnimalConfig));
         }
-        
+
         private void CreateMonsterCreature(AssetBundle creaturesAssetBundle, Texture2D lulztex)
         {
             // Load creature prefab from AssetBundle

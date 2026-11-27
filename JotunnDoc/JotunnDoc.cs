@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
@@ -74,10 +74,11 @@ namespace JotunnDoc
         public static string MakeList(IEnumerable<string> elements)
         {
             StringBuilder list = new StringBuilder("<ul>");
+            var items = elements as IList<string> ?? new List<string>(elements);
 
-            foreach (string element in elements)
+            for (int i = 0; i < items.Count; i++)
             {
-                list.Append($"<li>{element}</li>");
+                list.Append($"<li>{items[i]}</li>");
             }
 
             list.Append("</ul>");

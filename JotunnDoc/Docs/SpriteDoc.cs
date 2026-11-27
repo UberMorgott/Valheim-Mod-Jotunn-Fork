@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Linq;
 
@@ -32,7 +32,8 @@ namespace JotunnDoc.Docs
 
             var sprites = Resources.FindObjectsOfTypeAll<Sprite>().OrderBy(x => x.name);
 
-            foreach (var sprite in sprites.Where(x => !string.IsNullOrEmpty(x.name)))
+            var validSprites = sprites.Where(x => !string.IsNullOrEmpty(x.name)).ToList();
+            foreach (var sprite in validSprites)
             {
                 AddTableRow(sprite.name, sprite.texture.name, sprite.textureRect.ToString());
             }

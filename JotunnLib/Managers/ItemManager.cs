@@ -254,7 +254,14 @@ namespace Jotunn.Managers
         /// <returns></returns>
         public CustomRecipe GetRecipe(string recipeName)
         {
-            return Recipes.FirstOrDefault(x => x.Recipe.name.Equals(recipeName));
+            foreach (var recipe in Recipes)
+            {
+                if (recipe.Recipe.name.Equals(recipeName, StringComparison.Ordinal))
+                {
+                    return recipe;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -381,7 +388,7 @@ namespace Jotunn.Managers
         {
             if (Items.Count > 0)
             {
-                Logger.LogInfo($"Adding {Items.Count} custom items to the ObjectDB");
+                Logger.LogInfo($"Adding {Items.Count.ToString()} custom items to the ObjectDB");
 
                 List<CustomItem> toDelete = new List<CustomItem>();
 
@@ -477,9 +484,9 @@ namespace Jotunn.Managers
         /// <param name="objectDB"></param>
         private void RegisterCustomRecipes(ObjectDB objectDB)
         {
-            if (Recipes.Any())
+            if (Recipes.Count > 0)
             {
-                Logger.LogInfo($"Adding {Recipes.Count} custom recipes to the ObjectDB");
+                Logger.LogInfo($"Adding {Recipes.Count.ToString()} custom recipes to the ObjectDB");
 
                 List<CustomRecipe> toDelete = new List<CustomRecipe>();
 
@@ -521,9 +528,9 @@ namespace Jotunn.Managers
         /// <param name="objectDB"></param>
         private void RegisterCustomStatusEffects(ObjectDB objectDB)
         {
-            if (StatusEffects.Any())
+            if (StatusEffects.Count > 0)
             {
-                Logger.LogInfo($"Adding {StatusEffects.Count} custom status effects to the ObjectDB");
+                Logger.LogInfo($"Adding {StatusEffects.Count.ToString()} custom status effects to the ObjectDB");
 
                 List<CustomStatusEffect> toDelete = new List<CustomStatusEffect>();
 
@@ -544,7 +551,7 @@ namespace Jotunn.Managers
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogWarning(customStatusEffect?.SourceMod,$"Error caught while adding status effect {customStatusEffect}: {ex}");
+                        Logger.LogWarning(customStatusEffect?.SourceMod, $"Error caught while adding status effect {customStatusEffect}: {ex}");
                         toDelete.Add(customStatusEffect);
                     }
                 }
@@ -562,9 +569,9 @@ namespace Jotunn.Managers
         /// </summary>
         private void RegisterCustomItemConversions()
         {
-            if (ItemConversions.Any())
+            if (ItemConversions.Count > 0)
             {
-                Logger.LogInfo($"Adding {ItemConversions.Count} custom item conversions");
+                Logger.LogInfo($"Adding {ItemConversions.Count.ToString()} custom item conversions");
 
                 List<CustomItemConversion> toDelete = new List<CustomItemConversion>();
 
@@ -593,7 +600,7 @@ namespace Jotunn.Managers
                                 var cookStation = stationPrefab.GetComponent<CookingStation>();
                                 var cookConversion = (CookingStation.ItemConversion)conversion.ItemConversion;
 
-                                if (cookStation.m_conversion.Exists(c => c.m_from == cookConversion.m_from))
+                                if (HasCookingConversion(cookStation.m_conversion, cookConversion.m_from))
                                 {
                                     Logger.LogDebug($"Already added conversion ${conversion}");
                                     continue;
@@ -606,7 +613,7 @@ namespace Jotunn.Managers
                                 var fermenterStation = stationPrefab.GetComponent<Fermenter>();
                                 var fermenterConversion = (Fermenter.ItemConversion)conversion.ItemConversion;
 
-                                if (fermenterStation.m_conversion.Exists(c => c.m_from == fermenterConversion.m_from))
+                                if (HasFermenterConversion(fermenterStation.m_conversion, fermenterConversion.m_from))
                                 {
                                     Logger.LogDebug($"Already added conversion ${conversion}");
                                     continue;
@@ -619,7 +626,7 @@ namespace Jotunn.Managers
                                 var smelterStation = stationPrefab.GetComponent<Smelter>();
                                 var smelterConversion = (Smelter.ItemConversion)conversion.ItemConversion;
 
-                                if (smelterStation.m_conversion.Exists(c => c.m_from == smelterConversion.m_from))
+                                if (HasSmelterConversion(smelterStation.m_conversion, smelterConversion.m_from))
                                 {
                                     Logger.LogDebug($"Already added conversion ${conversion}");
                                     continue;
@@ -632,7 +639,7 @@ namespace Jotunn.Managers
                                 var incineratorStation = stationPrefab.GetComponent<Incinerator>();
                                 var incineratorConversion = (Incinerator.IncineratorConversion)conversion.ItemConversion;
 
-                                if (incineratorStation.m_conversions.Exists(c => c.m_requirements == incineratorConversion.m_requirements))
+                                if (HasIncineratorConversion(incineratorStation.m_conversions, incineratorConversion.m_requirements))
                                 {
                                     Logger.LogDebug($"Already added conversion ${conversion}");
                                     continue;
@@ -662,6 +669,42 @@ namespace Jotunn.Managers
             }
         }
 
+        private static bool HasCookingConversion(List<CookingStation.ItemConversion> list, ItemDrop from)
+        {
+            foreach (var c in list)
+            {
+                if (c.m_from == from) return true;
+            }
+            return false;
+        }
+
+        private static bool HasFermenterConversion(List<Fermenter.ItemConversion> list, ItemDrop from)
+        {
+            foreach (var c in list)
+            {
+                if (c.m_from == from) return true;
+            }
+            return false;
+        }
+
+        private static bool HasSmelterConversion(List<Smelter.ItemConversion> list, ItemDrop from)
+        {
+            foreach (var c in list)
+            {
+                if (c.m_from == from) return true;
+            }
+            return false;
+        }
+
+        private static bool HasIncineratorConversion(List<Incinerator.IncineratorConversion> list, List<Incinerator.Requirement> requirements)
+        {
+            foreach (var c in list)
+            {
+                if (c.m_requirements == requirements) return true;
+            }
+            return false;
+        }
+
         /// <summary>
         ///     Prefix on <see cref="ObjectDB.CopyOtherDB"/> to add custom items to FejdStartup screen (aka main menu)
         /// </summary>
@@ -679,7 +722,7 @@ namespace Jotunn.Managers
         /// <summary>
         ///     Safely invoke the <see cref="OnVanillaItemsAvailable"/> event
         /// </summary>
-        [Obsolete]
+        [Obsolete("Use PrefabManager.OnVanillaPrefabsAvailable instead.")]
         private void InvokeOnVanillaItemsAvailable()
         {
             OnVanillaItemsAvailable?.SafeInvoke();
@@ -766,7 +809,7 @@ namespace Jotunn.Managers
                 if (objectDB.m_itemByHash.ContainsKey(hash))
                 {
                     var mod = ModQuery.GetPrefab(name)?.SourceMod;
-                    Logger.LogWarning(mod, $"Found duplicate item '{name}' ({hash}) in ObjectDB.m_items");
+                    Logger.LogWarning(mod, $"Found duplicate item '{name}' ({hash.ToString()}) in ObjectDB.m_items");
                     continue;
                 }
 

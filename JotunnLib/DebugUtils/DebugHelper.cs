@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using HarmonyLib;
 using Jotunn.Managers;
+using Jotunn.Utils;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -77,13 +78,12 @@ namespace Jotunn.DebugUtils
 
         private void ProvidePasswordPatch(ZNet self, ZRpc rpc, bool needPassword)
         {
-            if (Environment.GetCommandLineArgs().Any(x => x.ToLower() == "+password"))
+            var args = Environment.GetCommandLineArgs();
+            if (args.Any(x => string.Equals(x, "+password", StringComparison.OrdinalIgnoreCase)))
             {
-                var args = Environment.GetCommandLineArgs();
-
                 // find password argument index
                 var index = 0;
-                while (index < args.Length && args[index].ToLower() != "+password")
+                while (index < args.Length && !string.Equals(args[index], "+password", StringComparison.OrdinalIgnoreCase))
                 {
                     index++;
                 }
@@ -108,7 +108,7 @@ namespace Jotunn.DebugUtils
         {
             if (ZoneManager.Instance.Locations.ContainsKey(location.m_prefabName))
             {
-                Logger.LogDebug($"spawned {location.m_prefabName}, mode: {mode}");
+                Logger.LogDebug($"spawned {location.m_prefabName}, mode: {EnumNameCache.GetName(mode, (int)mode)}");
             }
         }
 

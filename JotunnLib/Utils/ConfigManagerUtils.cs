@@ -16,23 +16,40 @@ namespace Jotunn.Utils
         /// </summary>
         public static BaseUnityPlugin Plugin { get; private set; }
 
-        private static PropertyInfo displayingWindowInfo;
+        private static Func<bool> getDisplayingWindow;
+        private static Action<bool> setDisplayingWindow;
         private static MethodInfo buildSettingListMethodInfo;
 
         static ConfigManagerUtils()
         {
             if (Chainloader.PluginInfos.TryGetValue("com.bepis.bepinex.configurationmanager", out var configManagerInfo) && configManagerInfo.Instance)
             {
-                Plugin = configManagerInfo.Instance;
-                displayingWindowInfo = AccessTools.Property(Plugin.GetType(), "DisplayingWindow");
-                buildSettingListMethodInfo = AccessTools.Method(Plugin.GetType(), "BuildSettingList");
+                BindPlugin(configManagerInfo.Instance);
             }
             else if (Chainloader.PluginInfos.TryGetValue("_shudnal.ConfigurationManager", out configManagerInfo) && configManagerInfo.Instance)
             {
-                Plugin = configManagerInfo.Instance;
-                displayingWindowInfo = AccessTools.Property(Plugin.GetType(), "DisplayingWindow");
-                buildSettingListMethodInfo = AccessTools.Method(Plugin.GetType(), "BuildSettingList");
+                BindPlugin(configManagerInfo.Instance);
             }
+        }
+
+        private static void BindPlugin(BaseUnityPlugin plugin)
+        {
+            Plugin = plugin;
+            var displayingWindowInfo = AccessTools.Property(Plugin.GetType(), "DisplayingWindow");
+            if (displayingWindowInfo != null)
+            {
+                var getter = displayingWindowInfo.GetGetMethod(true);
+                if (getter != null)
+                {
+                    getDisplayingWindow = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), Plugin, getter);
+                }
+                var setter = displayingWindowInfo.GetSetMethod(true);
+                if (setter != null)
+                {
+                    setDisplayingWindow = (Action<bool>)Delegate.CreateDelegate(typeof(Action<bool>), Plugin, setter);
+                }
+            }
+            buildSettingListMethodInfo = AccessTools.Method(Plugin.GetType(), "BuildSettingList");
         }
 
         /// <summary>
@@ -41,8 +58,8 @@ namespace Jotunn.Utils
         /// </summary>
         public static bool DisplayingWindow
         {
-            get => Plugin && (bool)displayingWindowInfo.GetValue(Plugin);
-            set => displayingWindowInfo?.SetValue(Plugin, value);
+            get => Plugin && getDisplayingWindow != null && getDisplayingWindow();
+            set => setDisplayingWindow?.Invoke(value);
         }
 
         /// <summary>

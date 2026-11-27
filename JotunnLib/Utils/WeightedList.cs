@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -9,8 +9,8 @@ namespace Jotunn.Utils
     ///     Like a list but stores elements in the order specified by the weight.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    /// <typeparam name="ItemType"></typeparam>
-    public class WeightedList<T, ItemType> where T : WeightedItem<ItemType>
+    /// <typeparam name="TItem"></typeparam>
+    public class WeightedList<T, TItem> where T : WeightedItem<TItem>
     {
         public readonly List<T> List;
 
@@ -23,7 +23,7 @@ namespace Jotunn.Utils
 
         public bool Remove(T item) => List.Remove(item);
 
-        public ItemType GetRandomItem(List<T> list = null)
+        public TItem GetRandomItem(List<T> list = null)
         {
             if (list == null) list = List;
 
@@ -50,14 +50,20 @@ namespace Jotunn.Utils
     }
 
     /// <summary>
-    ///     Weighted item used in <see cref="WeightedList{T, ItemType}"/>
+    ///     Weighted item used in <see cref="WeightedList{T, TItem}"/>
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public class WeightedItem<T>
     {
+        private float _weight;
+
         public T Item { get; private set; }
 
-        public virtual float Weight { get; set; }
+        public virtual float Weight
+        {
+            get => _weight;
+            set => _weight = value;
+        }
 
         public WeightedItem(T item, float weight = 0)
         {
@@ -65,7 +71,7 @@ namespace Jotunn.Utils
 
             if (weight != 0)
             {
-                Weight = weight;
+                _weight = weight;
             }
         }
     }

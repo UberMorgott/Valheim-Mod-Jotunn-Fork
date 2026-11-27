@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -27,6 +27,7 @@ namespace Jotunn.Entities
         private static int MaximumSendQueueSize = 20000;
 
         private static float Timeout = 30f;
+        private static readonly object ErrorConnectFailedArg = Enum.ToObject(typeof(ZNet.ConnectionStatus), (int)ZNet.ConnectionStatus.ErrorConnectFailed);
 
         /// <summary>
         ///     Name of the custom RPC as defined at instantiation
@@ -147,7 +148,15 @@ namespace Jotunn.Entities
 
             if (target != ZRoutedRpc.Everybody)
             {
-                peers = peers.Where(p => p.m_uid == target).ToList();
+                var targetPeers = new List<ZNetPeer>();
+                foreach (var p in peers)
+                {
+                    if (p.m_uid == target)
+                    {
+                        targetPeers.Add(p);
+                    }
+                }
+                peers = targetPeers;
             }
 
             yield return SendPackageRoutine(peers, package);
@@ -182,13 +191,20 @@ namespace Jotunn.Entities
                     package = CompressPackage(package);
                 }
 
-                List<IEnumerator<bool>> writers = peers.Where(peer => peer.IsReady()).Select(p => SendToPeer(p, package)).ToList();
-                writers.RemoveAll(writer => !writer.MoveNext());
+                List<PeerPackageSender> writers = new List<PeerPackageSender>();
+                foreach (var peer in peers)
+                {
+                    if (peer.IsReady())
+                    {
+                        writers.Add(new PeerPackageSender(this, peer, package));
+                    }
+                }
+                AdvanceWriters(writers);
 
                 while (writers.Count > 0)
                 {
                     yield return null;
-                    writers.RemoveAll(writer => !writer.MoveNext());
+                    AdvanceWriters(writers);
                 }
             }
             finally
@@ -197,10 +213,25 @@ namespace Jotunn.Entities
             }
         }
 
+        private static void AdvanceWriters(List<PeerPackageSender> writers)
+        {
+            for (int i = 0; i < writers.Count;)
+            {
+                if (!writers[i].MoveNext())
+                {
+                    writers.RemoveAt(i);
+                }
+                else
+                {
+                    i++;
+                }
+            }
+        }
+
         private ZPackage CompressPackage(ZPackage package)
         {
             byte[] rawData = package.GetArray();
-            Logger.LogDebug($"[{ID}] Compressing package with length {rawData.Length}");
+            Logger.LogDebug($"[{ID}] Compressing package with length {rawData.Length.ToString()}");
 
             ZPackage compressedPackage = new ZPackage();
             compressedPackage.Write(COMPRESSED_PACKAGE);
@@ -215,59 +246,69 @@ namespace Jotunn.Entities
             return compressedPackage;
         }
 
-        /// <summary>
-        ///     Coroutine to send a package to an actual peer.
-        /// </summary>
-        /// <param name="peer"></param>
-        /// <param name="package"></param>
-        /// <returns></returns>
-        private IEnumerator<bool> SendToPeer(ZNetPeer peer, ZPackage package)
+        private sealed class PeerPackageSender
         {
-            ZRoutedRpc rpc = ZRoutedRpc.instance;
+            private readonly CustomRPC owner;
+            private readonly ZNetPeer peer;
+            private readonly ZPackage package;
+            private readonly bool isFragmented;
+            private readonly byte[] data;
+            private readonly int fragments;
+            private readonly long packageIdentifier;
+            private int fragment;
+            private bool waitingForQueue;
+            private float queueTimeout;
 
-            if (rpc == null)
+            public PeerPackageSender(CustomRPC owner, ZNetPeer peer, ZPackage package)
             {
-                yield break;
-            }
-
-            IEnumerable<bool> WaitForQueue()
-            {
-                float timeout = Time.time + Timeout;
-                while (peer.m_socket.GetSendQueueSize() > MaximumSendQueueSize)
+                this.owner = owner;
+                this.peer = peer;
+                this.package = package;
+                isFragmented = package.Size() > PackageSliceSize;
+                if (isFragmented)
                 {
-                    if (Time.time > timeout)
-                    {
-                        Logger.LogInfo($"Disconnecting {peer.m_uid} after {Timeout} seconds sending timeout");
-                        peer.m_rpc.Invoke("Error", ZNet.ConnectionStatus.ErrorConnectFailed);
-                        ZNet.instance.Disconnect(peer);
-                        yield break;
-                    }
-
-                    yield return false;
+                    data = package.GetArray();
+                    fragments = (int)(1 + (data.LongLength - 1) / PackageSliceSize);
+                    packageIdentifier = ++owner.PackageCount;
                 }
             }
 
-            void Send(ZPackage pkg)
+            public bool MoveNext()
             {
-                rpc.InvokeRoutedRPC(peer.m_uid, ID, pkg);
-            }
-
-            if (package.Size() > PackageSliceSize)
-            {
-                byte[] data = package.GetArray();
-                int fragments = (int)(1 + (data.LongLength - 1) / PackageSliceSize);
-                long packageIdentifier = ++PackageCount;
-
-                for (int fragment = 0; fragment < fragments; fragment++)
+                ZRoutedRpc rpc = ZRoutedRpc.instance;
+                if (rpc == null)
                 {
-                    foreach (bool wait in WaitForQueue())
-                    {
-                        yield return wait;
-                    }
+                    return false;
+                }
 
+                if (!waitingForQueue)
+                {
+                    waitingForQueue = true;
+                    queueTimeout = Time.time + Timeout;
+                }
+
+                if (peer.m_socket.GetSendQueueSize() > MaximumSendQueueSize)
+                {
+                    if (Time.time > queueTimeout)
+                    {
+                        DisconnectOnTimeout(peer);
+                        waitingForQueue = false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    waitingForQueue = false;
+                }
+
+                if (isFragmented)
+                {
                     if (!peer.m_socket.IsConnected())
                     {
-                        yield break;
+                        return false;
                     }
 
                     ZPackage fragmentedPackage = new ZPackage();
@@ -277,25 +318,24 @@ namespace Jotunn.Entities
                     fragmentedPackage.Write(fragments);
                     fragmentedPackage.Write(data.Skip(PackageSliceSize * fragment).Take(PackageSliceSize).ToArray());
 
-                    Logger.LogDebug($"[{ID}] Sending fragmented package {packageIdentifier}:{fragment}");
-                    Send(fragmentedPackage);
+                    Logger.LogDebug($"[{owner.ID}] Sending fragmented package {packageIdentifier.ToString()}:{fragment.ToString()}");
+                    rpc.InvokeRoutedRPC(peer.m_uid, owner.ID, fragmentedPackage);
 
-                    if (fragment != fragments - 1)
-                    {
-                        yield return true;
-                    }
-                }
-            }
-            else
-            {
-                foreach (bool wait in WaitForQueue())
-                {
-                    yield return wait;
+                    fragment++;
+                    return fragment < fragments;
                 }
 
-                Logger.LogDebug($"[{ID}] Sending package");
-                Send(package);
+                Logger.LogDebug($"[{owner.ID}] Sending package");
+                rpc.InvokeRoutedRPC(peer.m_uid, owner.ID, package);
+                return false;
             }
+        }
+
+        private static void DisconnectOnTimeout(ZNetPeer peer)
+        {
+            Logger.LogInfo($"Disconnecting {peer.m_uid.ToString()} after {Timeout.ToString()} seconds sending timeout");
+            peer.m_rpc.Invoke("Error", ErrorConnectFailedArg);
+            ZNet.instance.Disconnect(peer);
         }
 
         /// <summary>
@@ -382,12 +422,12 @@ namespace Jotunn.Entities
                     package = new ZPackage(output.ToArray());
                     packageFlags = package.ReadByte();
 
-                    Logger.LogDebug($"[{ID}] Decompressed package to length {output.Length}");
+                    Logger.LogDebug($"[{ID}] Decompressed package to length {output.Length.ToString()}");
                 }
 
                 if ((packageFlags & JOTUNN_PACKAGE) != JOTUNN_PACKAGE)
                 {
-                    Logger.LogWarning($"[{ID}] Package flag does not equal {JOTUNN_PACKAGE} ({packageFlags:X4})");
+                    Logger.LogWarning($"[{ID}] Package flag does not equal {JOTUNN_PACKAGE.ToString()} ({packageFlags.ToString("X4")})");
                     yield break;
                 }
 

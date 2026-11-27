@@ -1,4 +1,4 @@
-﻿// JotunnLib
+// JotunnLib
 // a Valheim mod
 // 
 // File:    TestMapDrawing.cs
@@ -24,7 +24,7 @@ namespace TestMod
         private const string ModGUID = "com.jotunn.testmapdrawing";
         private const string ModName = "Jotunn Test Map Overlays";
         private const string ModVersion = "0.1.0";
-        
+
         public void Awake()
         {
             CommandManager.Instance.AddConsoleCommand(new CHCommands_zones());
@@ -56,7 +56,7 @@ namespace TestMod
             // Create a Color array with space for every pixel of the map
             int mapSize = zoneOverlay.TextureSize * zoneOverlay.TextureSize;
             Color[] mainPixels = new Color[mapSize];
-            
+
             // Iterate and set a color for every pixel you want to draw
             int zoneSize = 64;
             int index = 0;
@@ -211,7 +211,7 @@ namespace TestMod
         /// <param name="square_size"></param>
         private static void DrawSquare(Texture2D tex, Vector2 start, Color col, int square_size)
         {
-            Jotunn.Logger.LogInfo($"Starting drawsquare at {start}");
+            Jotunn.Logger.LogInfo($"Starting drawsquare at {start.ToString()}");
             for (float i = start.x; i < start.x + square_size; i++)
             {
                 for (float j = start.y; j < start.y + square_size; j++)
@@ -378,7 +378,7 @@ namespace TestMod
                 {
                     FlattenMap(height, flatten);
                     flatten.Enabled = true;
-                    Console.instance.Print($"Setting overlay {flatten.Name} to {height}");
+                    Console.instance.Print($"Setting overlay {flatten.Name} to {height.ToString()}");
                 }
             }
         }
@@ -522,7 +522,7 @@ namespace TestMod
 
                 reeOverlay.OverlayTex.Apply();
                 reeOverlay.Enabled = true;
-                Console.instance.Print($"Setting :reee: at {Player.m_localPlayer.transform.position}");
+                Console.instance.Print($"Setting :reee: at {Player.m_localPlayer.transform.position.ToString()}");
             }
         }
 
@@ -558,7 +558,7 @@ namespace TestMod
                 reeDrawing.FogFilter.Apply();
 
                 reeDrawing.Enabled = true;
-                Console.instance.Print($"Setting :reee: at {Player.m_localPlayer.transform.position}");
+                Console.instance.Print($"Setting :reee: at {Player.m_localPlayer.transform.position.ToString()}");
             }
         }
     }

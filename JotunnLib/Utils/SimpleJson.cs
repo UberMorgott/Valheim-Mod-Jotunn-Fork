@@ -163,10 +163,16 @@ namespace SimpleJson
                 throw new ArgumentNullException("obj");
             if (index >= obj.Count)
                 throw new ArgumentOutOfRangeException("index");
-            int i = 0;
-            foreach (KeyValuePair<string, object> o in obj)
-                if (i++ == index) return o.Value;
-            return null;
+            if (obj is Dictionary<string, object> dict)
+            {
+                int i = 0;
+                foreach (KeyValuePair<string, object> o in dict)
+                    if (i++ == index) return o.Value;
+                return null;
+            }
+            var pairs = new KeyValuePair<string, object>[obj.Count];
+            obj.CopyTo(pairs, 0);
+            return pairs[index].Value;
         }
 
         /// <summary>
@@ -278,7 +284,7 @@ namespace SimpleJson
         {
             if (array == null) throw new ArgumentNullException("array");
             int num = Count;
-            foreach (KeyValuePair<string, object> kvp in this)
+            foreach (KeyValuePair<string, object> kvp in _members)
             {
                 array[arrayIndex++] = kvp;
                 if (--num <= 0)
@@ -322,7 +328,7 @@ namespace SimpleJson
         /// <returns></returns>
         public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
         {
-            return _members.GetEnumerator();
+            return new ReflectionUtils.DictionaryEnumeratorAdapter<string, object>(_members);
         }
 
         /// <summary>
@@ -333,7 +339,7 @@ namespace SimpleJson
         /// </returns>
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return _members.GetEnumerator();
+            return new ReflectionUtils.DictionaryEnumeratorAdapter<string, object>(_members);
         }
 
         /// <summary>
@@ -755,6 +761,9 @@ namespace SimpleJson
             return array;
         }
 
+        private static readonly object BoxedTrue = new[] { true }.GetValue(0);
+        private static readonly object BoxedFalse = new[] { false }.GetValue(0);
+
         static object ParseValue(char[] json, ref int index, ref bool success)
         {
             switch (LookAhead(json, index))
@@ -769,10 +778,10 @@ namespace SimpleJson
                     return ParseArray(json, ref index, ref success);
                 case TOKEN_TRUE:
                     NextToken(json, ref index);
-                    return true;
+                    return BoxedTrue;
                 case TOKEN_FALSE:
                     NextToken(json, ref index);
-                    return false;
+                    return BoxedFalse;
                 case TOKEN_NULL:
                     NextToken(json, ref index);
                     return null;
@@ -1321,6 +1330,13 @@ namespace SimpleJson
             return TrySerializeKnownTypes(input, out output) || TrySerializeUnknownTypes(input, out output);
         }
 
+        private static readonly object BoxedEmptyGuid = new[] { default(Guid) }.GetValue(0);
+
+        private static object BoxValue<T>(T value)
+        {
+            return new[] { value }.GetValue(0);
+        }
+
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public virtual object DeserializeObject(object value, Type type)
         {
@@ -1328,7 +1344,7 @@ namespace SimpleJson
             string str = value as string;
 
             if (type == typeof(Guid) && string.IsNullOrEmpty(str))
-                return default(Guid);
+                return BoxedEmptyGuid;
 
             if (value == null)
                 return null;
@@ -1340,11 +1356,11 @@ namespace SimpleJson
                 if (str.Length != 0) // We know it can't be null now.
                 {
                     if (type == typeof(DateTime) || (ReflectionUtils.IsNullableType(type) && Nullable.GetUnderlyingType(type) == typeof(DateTime)))
-                        return DateTime.ParseExact(str, Iso8601Format, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+                        return BoxValue(DateTime.ParseExact(str, Iso8601Format, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));
                     if (type == typeof(DateTimeOffset) || (ReflectionUtils.IsNullableType(type) && Nullable.GetUnderlyingType(type) == typeof(DateTimeOffset)))
-                        return DateTimeOffset.ParseExact(str, Iso8601Format, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+                        return BoxValue(DateTimeOffset.ParseExact(str, Iso8601Format, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));
                     if (type == typeof(Guid) || (ReflectionUtils.IsNullableType(type) && Nullable.GetUnderlyingType(type) == typeof(Guid)))
-                        return new Guid(str);
+                        return BoxValue(new Guid(str));
                     if (type == typeof(Uri))
                     {
                         bool isValid = Uri.IsWellFormedUriString(str, UriKind.RelativeOrAbsolute);
@@ -1418,8 +1434,10 @@ namespace SimpleJson
 
                         IDictionary dict = (IDictionary)ConstructorCache[genericType]();
 
-                        foreach (KeyValuePair<string, object> kvp in jsonObject)
-                            dict.Add(kvp.Key, DeserializeObject(kvp.Value, valueType));
+                        var pairs = new KeyValuePair<string, object>[jsonObject.Count];
+                        jsonObject.CopyTo(pairs, 0);
+                        for (int i = 0; i < pairs.Length; i++)
+                            dict.Add(pairs[i].Key, DeserializeObject(pairs[i].Value, valueType));
 
                         obj = dict;
                     }
@@ -1432,14 +1450,33 @@ namespace SimpleJson
                             var constructorDelegate = ConstructorCache[type];
                             if (constructorDelegate != null) obj = constructorDelegate();
                             else throw new MissingMethodException($"No default constructor found for {type}");
-                            
-                            foreach (KeyValuePair<string, KeyValuePair<Type, ReflectionUtils.SetDelegate>> setter in SetCache[type])
+
+                            var setters = SetCache[type];
+                            if (setters is Dictionary<string, KeyValuePair<Type, ReflectionUtils.SetDelegate>> setterDict)
                             {
-                                object jsonValue;
-                                if (jsonObject.TryGetValue(setter.Key, out jsonValue))
+                                foreach (KeyValuePair<string, KeyValuePair<Type, ReflectionUtils.SetDelegate>> setter in setterDict)
                                 {
-                                    jsonValue = DeserializeObject(jsonValue, setter.Value.Key);
-                                    setter.Value.Value(obj, jsonValue);
+                                    object jsonValue;
+                                    if (jsonObject.TryGetValue(setter.Key, out jsonValue))
+                                    {
+                                        jsonValue = DeserializeObject(jsonValue, setter.Value.Key);
+                                        setter.Value.Value(obj, jsonValue);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var setterPairs = new KeyValuePair<string, KeyValuePair<Type, ReflectionUtils.SetDelegate>>[setters.Count];
+                                setters.CopyTo(setterPairs, 0);
+                                for (int i = 0; i < setterPairs.Length; i++)
+                                {
+                                    var setter = setterPairs[i];
+                                    object jsonValue;
+                                    if (jsonObject.TryGetValue(setter.Key, out jsonValue))
+                                    {
+                                        jsonValue = DeserializeObject(jsonValue, setter.Value.Key);
+                                        setter.Value.Value(obj, jsonValue);
+                                    }
                                 }
                             }
                         }
@@ -1455,17 +1492,16 @@ namespace SimpleJson
 
                         if (type.IsArray)
                         {
-                            list = (IList)ConstructorCache[type](jsonObject.Count);
-                            int i = 0;
-                            foreach (object o in jsonObject)
-                                list[i++] = DeserializeObject(o, type.GetElementType());
+                            list = (IList)ConstructorCache[type](BoxValue(jsonObject.Count));
+                            for (int i = 0; i < jsonObject.Count; i++)
+                                list[i] = DeserializeObject(jsonObject[i], type.GetElementType());
                         }
                         else if (ReflectionUtils.IsTypeGenericeCollectionInterface(type) || ReflectionUtils.IsAssignableFrom(typeof(IList), type))
                         {
                             Type innerType = ReflectionUtils.GetGenericListElementType(type);
-                            list = (IList)(ConstructorCache[type] ?? ConstructorCache[typeof(List<>).MakeGenericType(innerType)])(jsonObject.Count);
-                            foreach (object o in jsonObject)
-                                list.Add(DeserializeObject(o, innerType));
+                            list = (IList)(ConstructorCache[type] ?? ConstructorCache[typeof(List<>).MakeGenericType(innerType)])(BoxValue(jsonObject.Count));
+                            for (int i = 0; i < jsonObject.Count; i++)
+                                list.Add(DeserializeObject(jsonObject[i], innerType));
                         }
                         obj = list;
                     }
@@ -1479,7 +1515,7 @@ namespace SimpleJson
 
         protected virtual object SerializeEnum(Enum p)
         {
-            return Convert.ToDouble(p, CultureInfo.InvariantCulture);
+            return BoxValue(Convert.ToDouble(p, CultureInfo.InvariantCulture));
         }
 
         [SuppressMessage("Microsoft.Design", "CA1007:UseGenericsWhereAppropriate", Justification = "Need to support .NET 2")]
@@ -1517,10 +1553,24 @@ namespace SimpleJson
                 return false;
             IDictionary<string, object> obj = new JsonObject();
             IDictionary<string, ReflectionUtils.GetDelegate> getters = GetCache[type];
-            foreach (KeyValuePair<string, ReflectionUtils.GetDelegate> getter in getters)
+            if (getters is Dictionary<string, ReflectionUtils.GetDelegate> getterDict)
             {
-                if (getter.Value != null)
-                    obj.Add(MapClrMemberNameToJsonFieldName(getter.Key), getter.Value(input));
+                foreach (KeyValuePair<string, ReflectionUtils.GetDelegate> getter in getterDict)
+                {
+                    if (getter.Value != null)
+                        obj.Add(MapClrMemberNameToJsonFieldName(getter.Key), getter.Value(input));
+                }
+            }
+            else
+            {
+                var getterPairs = new KeyValuePair<string, ReflectionUtils.GetDelegate>[getters.Count];
+                getters.CopyTo(getterPairs, 0);
+                for (int i = 0; i < getterPairs.Length; i++)
+                {
+                    var getter = getterPairs[i];
+                    if (getter.Value != null)
+                        obj.Add(MapClrMemberNameToJsonFieldName(getter.Key), getter.Value(input));
+                }
             }
             output = obj;
             return true;
@@ -1653,11 +1703,10 @@ namespace SimpleJson
 
             public static Type GetGenericListElementType(Type type)
             {
-                IEnumerable<Type> interfaces;
 #if SIMPLE_JSON_TYPEINFO
-                interfaces = type.GetTypeInfo().ImplementedInterfaces;
+                var interfaces = new List<Type>(type.GetTypeInfo().ImplementedInterfaces);
 #else
-                interfaces = type.GetInterfaces();
+                Type[] interfaces = type.GetInterfaces();
 #endif
                 foreach (Type implementedInterface in interfaces)
                 {
@@ -1751,18 +1800,21 @@ namespace SimpleJson
                 return GetTypeInfo(type).IsValueType;
             }
 
-            public static IEnumerable<ConstructorInfo> GetConstructors(Type type)
-            {
 #if SIMPLE_JSON_TYPEINFO
-                return type.GetTypeInfo().DeclaredConstructors;
-#else
-                return type.GetConstructors();
-#endif
+            public static List<ConstructorInfo> GetConstructors(Type type)
+            {
+                return new List<ConstructorInfo>(type.GetTypeInfo().DeclaredConstructors);
             }
+#else
+            public static ConstructorInfo[] GetConstructors(Type type)
+            {
+                return type.GetConstructors();
+            }
+#endif
 
             public static ConstructorInfo GetConstructorInfo(Type type, params Type[] argsType)
             {
-                IEnumerable<ConstructorInfo> constructorInfos = GetConstructors(type);
+                var constructorInfos = GetConstructors(type);
                 int i;
                 bool matches;
                 foreach (ConstructorInfo constructorInfo in constructorInfos)
@@ -1789,23 +1841,27 @@ namespace SimpleJson
                 return null;
             }
 
-            public static IEnumerable<PropertyInfo> GetProperties(Type type)
-            {
 #if SIMPLE_JSON_TYPEINFO
-                return type.GetRuntimeProperties();
-#else
-                return type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-#endif
+            public static List<PropertyInfo> GetProperties(Type type)
+            {
+                return new List<PropertyInfo>(type.GetRuntimeProperties());
             }
 
-            public static IEnumerable<FieldInfo> GetFields(Type type)
+            public static List<FieldInfo> GetFields(Type type)
             {
-#if SIMPLE_JSON_TYPEINFO
-                return type.GetRuntimeFields();
-#else
-                return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-#endif
+                return new List<FieldInfo>(type.GetRuntimeFields());
             }
+#else
+            public static PropertyInfo[] GetProperties(Type type)
+            {
+                return type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            }
+
+            public static FieldInfo[] GetFields(Type type)
+            {
+                return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            }
+#endif
 
             public static MethodInfo GetGetterMethodInfo(PropertyInfo propertyInfo)
             {
@@ -1843,9 +1899,44 @@ namespace SimpleJson
 #endif
             }
 
+            private sealed class ConstructorReflectionInvoker
+            {
+                private readonly ConstructorInfo _constructorInfo;
+                public ConstructorReflectionInvoker(ConstructorInfo constructorInfo) => _constructorInfo = constructorInfo;
+                public object Invoke(params object[] args) => _constructorInfo.Invoke(args);
+            }
+
+            private sealed class MethodGetterInvoker
+            {
+                private readonly MethodInfo _methodInfo;
+                public MethodGetterInvoker(MethodInfo methodInfo) => _methodInfo = methodInfo;
+                public object Get(object source) => _methodInfo.Invoke(source, EmptyObjects);
+            }
+
+            private sealed class FieldGetterInvoker
+            {
+                private readonly FieldInfo _fieldInfo;
+                public FieldGetterInvoker(FieldInfo fieldInfo) => _fieldInfo = fieldInfo;
+                public object Get(object source) => _fieldInfo.GetValue(source);
+            }
+
+            private sealed class MethodSetterInvoker
+            {
+                private readonly MethodInfo _methodInfo;
+                public MethodSetterInvoker(MethodInfo methodInfo) => _methodInfo = methodInfo;
+                public void Set(object source, object value) => _methodInfo.Invoke(source, new object[] { value });
+            }
+
+            private sealed class FieldSetterInvoker
+            {
+                private readonly FieldInfo _fieldInfo;
+                public FieldSetterInvoker(FieldInfo fieldInfo) => _fieldInfo = fieldInfo;
+                public void Set(object source, object value) => _fieldInfo.SetValue(source, value);
+            }
+
             public static ConstructorDelegate GetConstructorByReflection(ConstructorInfo constructorInfo)
             {
-                return delegate (object[] args) { return constructorInfo.Invoke(args); };
+                return new ConstructorReflectionInvoker(constructorInfo).Invoke;
             }
 
             public static ConstructorDelegate GetConstructorByReflection(Type type, params Type[] argsType)
@@ -1863,16 +1954,14 @@ namespace SimpleJson
                 Expression[] argsExp = new Expression[paramsInfo.Length];
                 for (int i = 0; i < paramsInfo.Length; i++)
                 {
-                    Expression index = Expression.Constant(i);
+                    Expression index = Expression.Constant(new[] { i }.GetValue(0), typeof(int));
                     Type paramType = paramsInfo[i].ParameterType;
                     Expression paramAccessorExp = Expression.ArrayIndex(param, index);
                     Expression paramCastExp = Expression.Convert(paramAccessorExp, paramType);
                     argsExp[i] = paramCastExp;
                 }
                 NewExpression newExp = Expression.New(constructorInfo, argsExp);
-                Expression<Func<object[], object>> lambda = Expression.Lambda<Func<object[], object>>(newExp, param);
-                Func<object[], object> compiledLambda = lambda.Compile();
-                return delegate (object[] args) { return compiledLambda(args); };
+                return Expression.Lambda<ConstructorDelegate>(newExp, param).Compile();
             }
 
             public static ConstructorDelegate GetConstructorByExpression(Type type, params Type[] argsType)
@@ -1904,12 +1993,12 @@ namespace SimpleJson
             public static GetDelegate GetGetMethodByReflection(PropertyInfo propertyInfo)
             {
                 MethodInfo methodInfo = GetGetterMethodInfo(propertyInfo);
-                return delegate (object source) { return methodInfo.Invoke(source, EmptyObjects); };
+                return new MethodGetterInvoker(methodInfo).Get;
             }
 
             public static GetDelegate GetGetMethodByReflection(FieldInfo fieldInfo)
             {
-                return delegate (object source) { return fieldInfo.GetValue(source); };
+                return new FieldGetterInvoker(fieldInfo).Get;
             }
 
 #if !SIMPLE_JSON_NO_LINQ_EXPRESSION
@@ -1919,16 +2008,14 @@ namespace SimpleJson
                 MethodInfo getMethodInfo = GetGetterMethodInfo(propertyInfo);
                 ParameterExpression instance = Expression.Parameter(typeof(object), "instance");
                 UnaryExpression instanceCast = (!IsValueType(propertyInfo.DeclaringType)) ? Expression.TypeAs(instance, propertyInfo.DeclaringType) : Expression.Convert(instance, propertyInfo.DeclaringType);
-                Func<object, object> compiled = Expression.Lambda<Func<object, object>>(Expression.TypeAs(Expression.Call(instanceCast, getMethodInfo), typeof(object)), instance).Compile();
-                return delegate (object source) { return compiled(source); };
+                return Expression.Lambda<GetDelegate>(Expression.TypeAs(Expression.Call(instanceCast, getMethodInfo), typeof(object)), instance).Compile();
             }
 
             public static GetDelegate GetGetMethodByExpression(FieldInfo fieldInfo)
             {
                 ParameterExpression instance = Expression.Parameter(typeof(object), "instance");
                 MemberExpression member = Expression.Field(Expression.Convert(instance, fieldInfo.DeclaringType), fieldInfo);
-                GetDelegate compiled = Expression.Lambda<GetDelegate>(Expression.Convert(member, typeof(object)), instance).Compile();
-                return delegate (object source) { return compiled(source); };
+                return Expression.Lambda<GetDelegate>(Expression.Convert(member, typeof(object)), instance).Compile();
             }
 
 #endif
@@ -1954,12 +2041,12 @@ namespace SimpleJson
             public static SetDelegate GetSetMethodByReflection(PropertyInfo propertyInfo)
             {
                 MethodInfo methodInfo = GetSetterMethodInfo(propertyInfo);
-                return delegate (object source, object value) { methodInfo.Invoke(source, new object[] { value }); };
+                return new MethodSetterInvoker(methodInfo).Set;
             }
 
             public static SetDelegate GetSetMethodByReflection(FieldInfo fieldInfo)
             {
-                return delegate (object source, object value) { fieldInfo.SetValue(source, value); };
+                return new FieldSetterInvoker(fieldInfo).Set;
             }
 
 #if !SIMPLE_JSON_NO_LINQ_EXPRESSION
@@ -1971,17 +2058,15 @@ namespace SimpleJson
                 ParameterExpression value = Expression.Parameter(typeof(object), "value");
                 UnaryExpression instanceCast = (!IsValueType(propertyInfo.DeclaringType)) ? Expression.TypeAs(instance, propertyInfo.DeclaringType) : Expression.Convert(instance, propertyInfo.DeclaringType);
                 UnaryExpression valueCast = (!IsValueType(propertyInfo.PropertyType)) ? Expression.TypeAs(value, propertyInfo.PropertyType) : Expression.Convert(value, propertyInfo.PropertyType);
-                Action<object, object> compiled = Expression.Lambda<Action<object, object>>(Expression.Call(instanceCast, setMethodInfo, valueCast), new ParameterExpression[] { instance, value }).Compile();
-                return delegate (object source, object val) { compiled(source, val); };
+                return Expression.Lambda<SetDelegate>(Expression.Call(instanceCast, setMethodInfo, valueCast), new ParameterExpression[] { instance, value }).Compile();
             }
 
             public static SetDelegate GetSetMethodByExpression(FieldInfo fieldInfo)
             {
                 ParameterExpression instance = Expression.Parameter(typeof(object), "instance");
                 ParameterExpression value = Expression.Parameter(typeof(object), "value");
-                Action<object, object> compiled = Expression.Lambda<Action<object, object>>(
+                return Expression.Lambda<SetDelegate>(
                     Assign(Expression.Field(Expression.Convert(instance, fieldInfo.DeclaringType), fieldInfo), Expression.Convert(value, fieldInfo.FieldType)), instance, value).Compile();
-                return delegate (object source, object val) { compiled(source, val); };
             }
 
             public static BinaryExpression Assign(Expression left, Expression right)
@@ -2123,13 +2208,33 @@ namespace SimpleJson
 
                 public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
                 {
-                    return _dictionary.GetEnumerator();
+                    return new DictionaryEnumeratorAdapter<TKey, TValue>(_dictionary);
                 }
 
                 System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
                 {
-                    return _dictionary.GetEnumerator();
+                    return new DictionaryEnumeratorAdapter<TKey, TValue>(_dictionary);
                 }
+            }
+
+            internal sealed class DictionaryEnumeratorAdapter<TKey, TValue> : IEnumerator<KeyValuePair<TKey, TValue>>
+            {
+                private Dictionary<TKey, TValue>.Enumerator _enumerator;
+
+                public DictionaryEnumeratorAdapter(Dictionary<TKey, TValue> dictionary)
+                {
+                    _enumerator = dictionary.GetEnumerator();
+                }
+
+                public KeyValuePair<TKey, TValue> Current => _enumerator.Current;
+
+                object IEnumerator.Current => new[] { _enumerator.Current }.GetValue(0);
+
+                public bool MoveNext() => _enumerator.MoveNext();
+
+                public void Reset() => throw new NotSupportedException();
+
+                public void Dispose() => _enumerator.Dispose();
             }
 
         }

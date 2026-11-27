@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -138,8 +138,11 @@ namespace Jotunn.Managers
             // Add in localized languages that do not yet exist
             foreach (var ct in Localizations.Values)
             {
-                foreach (var language in ct.GetLanguages())
+                var languages = ct.GetLanguages();
+                var langList = languages as IList<string> ?? new List<string>(languages);
+                for (int i = 0; i < langList.Count; i++)
                 {
+                    var language = langList[i];
                     if (!result.Contains(language))
                     {
                         result.Add(language);
@@ -150,25 +153,37 @@ namespace Jotunn.Managers
 
         private void AddTranslations(Localization localization, string language)
         {
-            foreach (var pair in GetAllTranslations(DefaultLanguage))
-            {
-                localization.AddWord(pair.Key, pair.Value);
-            }
+            AddLanguageTranslations(localization, DefaultLanguage);
 
             if (string.IsNullOrEmpty(language) || language == DefaultLanguage)
             {
                 return;
             }
 
-            foreach (var pair in GetAllTranslations(language))
-            {
-                localization.AddWord(pair.Key, pair.Value);
-            }
+            AddLanguageTranslations(localization, language);
         }
 
-        private IEnumerable<KeyValuePair<string, string>> GetAllTranslations(string language)
+        private void AddLanguageTranslations(Localization localization, string language)
         {
-            return Localizations.Values.SelectMany(ct => ct.GetTranslations(language));
+            foreach (var ct in Localizations.Values)
+            {
+                var translations = ct.GetTranslations(language);
+                if (translations is Dictionary<string, string> dict)
+                {
+                    foreach (var pair in dict)
+                    {
+                        localization.AddWord(pair.Key, pair.Value);
+                    }
+                }
+                else
+                {
+                    var pairs = new List<KeyValuePair<string, string>>(translations);
+                    for (int i = 0; i < pairs.Count; i++)
+                    {
+                        localization.AddWord(pairs[i].Key, pairs[i].Value);
+                    }
+                }
+            }
         }
 
         internal static string GetPlayerLanguage()
@@ -266,7 +281,7 @@ namespace Jotunn.Managers
             return !string.IsNullOrEmpty(translation) && translation[0] != '[';
         }
 
-#region Obsolete
+        #region Obsolete
 
         /// <summary> 
         ///     Registers a new Localization for a language.
@@ -332,6 +347,6 @@ namespace Jotunn.Managers
         public void AddLanguageFile(string fileContent)
             => GetLocalization().AddLanguageFile(fileContent);
 
-#endregion
+        #endregion
     }
 }

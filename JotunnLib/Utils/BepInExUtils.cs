@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -48,9 +48,9 @@ namespace Jotunn.Utils
                     continue;
                 }
 
-                foreach (var dependencyAttribute in plugin.GetType().GetCustomAttributes(typeof(BepInDependency), false).Cast<BepInDependency>())
+                foreach (var attr in plugin.GetType().GetCustomAttributes(typeof(BepInDependency), false))
                 {
-                    if (dependencyAttribute.DependencyGUID == Main.ModGuid)
+                    if (attr is BepInDependency dependencyAttribute && dependencyAttribute.DependencyGUID == Main.ModGuid)
                     {
                         dependent.Add(plugin);
                     }
@@ -78,9 +78,15 @@ namespace Jotunn.Utils
                 }
             }
 
-            return Plugins
-                   .Where(plugin => includeJotunn || plugin.Info.Metadata.GUID != Main.ModGuid)
-                   .ToDictionary(plugin => plugin.Info.Metadata.GUID);
+            var result = new Dictionary<string, BaseUnityPlugin>();
+            foreach (var plugin in Plugins)
+            {
+                if (includeJotunn || plugin.Info.Metadata.GUID != Main.ModGuid)
+                {
+                    result.Add(plugin.Info.Metadata.GUID, plugin);
+                }
+            }
+            return result;
         }
 
         /// <summary>
@@ -89,9 +95,15 @@ namespace Jotunn.Utils
         /// <returns>Dictionary of plugin GUID and <see cref="BaseUnityPlugin"/></returns>
         public static Dictionary<string, BaseUnityPlugin> GetPlugins(bool includeJotunn = false)
         {
-            return GetLoadedPlugins()
-                   .Where(plugin => includeJotunn || plugin.Info.Metadata.GUID != Main.ModGuid)
-                   .ToDictionary(plugin => plugin.Info.Metadata.GUID);
+            var result = new Dictionary<string, BaseUnityPlugin>();
+            foreach (var plugin in GetLoadedPlugins())
+            {
+                if (includeJotunn || plugin.Info.Metadata.GUID != Main.ModGuid)
+                {
+                    result.Add(plugin.Info.Metadata.GUID, plugin);
+                }
+            }
+            return result;
         }
 
         /// <summary>
@@ -109,7 +121,7 @@ namespace Jotunn.Utils
             foreach (var info in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
             {
                 var typeName = ReflectionHelper.GetPrivateProperty<string>(info, "TypeName");
-                if (typeName.Equals(type.FullName))
+                if (typeName.Equals(type.FullName, StringComparison.Ordinal))
                 {
                     TypeToPluginInfoCache[type] = info;
                     return info;
@@ -161,13 +173,29 @@ namespace Jotunn.Utils
         /// </summary>
         /// <param name="fileInfo"><see cref="FileInfo"/> object of the plugin path</param>
         /// <returns></returns>
-        public static PluginInfo GetPluginInfoFromPath(FileInfo fileInfo) =>
-            BepInEx.Bootstrap.Chainloader.PluginInfos.Values
-                .Where(pi => pi.Location != null)
-                .FirstOrDefault(pi =>
-                    fileInfo.DirectoryName != null &&
-                    fileInfo.DirectoryName.Contains(new FileInfo(pi.Location).DirectoryName) &&
-                    new FileInfo(pi.Location).DirectoryName != BepInEx.Paths.PluginPath);
+        public static PluginInfo GetPluginInfoFromPath(FileInfo fileInfo)
+        {
+            if (fileInfo.DirectoryName == null)
+            {
+                return null;
+            }
+
+            foreach (var pi in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
+            {
+                if (pi.Location == null)
+                {
+                    continue;
+                }
+
+                var pluginDir = new FileInfo(pi.Location).DirectoryName;
+                if (fileInfo.DirectoryName.Contains(pluginDir) && pluginDir != BepInEx.Paths.PluginPath)
+                {
+                    return pi;
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>
         ///     Get metadata information from the current calling mod
@@ -182,11 +210,17 @@ namespace Jotunn.Utils
                    Main.Instance.Info.Metadata;
         }
 
-        private static IEnumerable<BaseUnityPlugin> GetLoadedPlugins()
+        private static List<BaseUnityPlugin> GetLoadedPlugins()
         {
-            return BepInEx.Bootstrap.Chainloader.PluginInfos
-                          .Where(x => x.Value != null && x.Value.Instance != null)
-                          .Select(x => x.Value.Instance);
+            var loaded = new List<BaseUnityPlugin>();
+            foreach (var kv in BepInEx.Bootstrap.Chainloader.PluginInfos)
+            {
+                if (kv.Value != null && kv.Value.Instance != null)
+                {
+                    loaded.Add(kv.Value.Instance);
+                }
+            }
+            return loaded;
         }
     }
 }

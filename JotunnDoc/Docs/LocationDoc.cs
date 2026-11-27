@@ -59,7 +59,8 @@ namespace JotunnDoc.Docs
                 {
                     AddHeader(2, group.Key != "" ? group.Key : "No group");
                     AddTableHeader("Location", "Biome", "BiomeArea", "Quantity", "Exterior radius", "Properties", "Filters", "Interior");
-                    foreach (var zoneLocation in group.OrderByDescending(zl => zl.m_prioritized).ThenBy(zl => zl.m_quantity))
+                    var orderedLocations = group.OrderByDescending(zl => zl.m_prioritized).ThenBy(zl => zl.m_quantity).ToList();
+                    foreach (var zoneLocation in orderedLocations)
                     {
                         zoneLocation.m_prefab.Load();
                         GameObject exteriorPrefab = zoneLocation.m_prefab.Asset;
@@ -71,7 +72,7 @@ namespace JotunnDoc.Docs
                             for (int i = 0; i < locationTransform.childCount; i++)
                             {
                                 var childTransform = locationTransform.GetChild(i);
-                                if (childTransform.name.ToLowerInvariant().Equals("exterior"))
+                                if (childTransform.name.Equals("exterior", StringComparison.OrdinalIgnoreCase))
                                 {
                                     exteriorPrefab = childTransform.gameObject;
                                     break;
@@ -114,9 +115,9 @@ namespace JotunnDoc.Docs
                 $"<li>Altitude: {RangeString(zoneLocation.m_minAltitude, zoneLocation.m_minAltitude)}</li>" +
 
                 $"<li>Terrain Delta: {RangeString(zoneLocation.m_minTerrainDelta, zoneLocation.m_maxTerrainDelta)}</li>" +
-                $"{(zoneLocation.m_minDistance != 0 ? $"<li>Min Distance: {zoneLocation.m_minDistance}" : "")}</li>" +
+                $"{(zoneLocation.m_minDistance != 0 ? $"<li>Min Distance: {zoneLocation.m_minDistance.ToString()}" : "")}</li>" +
                 $"{(inForest ? "" : $"<li>Forest Threshold: {RangeString(zoneLocation.m_forestTresholdMin, zoneLocation.m_forestTresholdMax)}")}</li>" +
-                $"{(zoneLocation.m_minDistanceFromSimilar != 0 ? $"<li>MinDistanceFromSimilar: {zoneLocation.m_minDistanceFromSimilar}" : "")}</li>" +
+                $"{(zoneLocation.m_minDistanceFromSimilar != 0 ? $"<li>MinDistanceFromSimilar: {zoneLocation.m_minDistanceFromSimilar.ToString()}" : "")}</li>" +
                 "</ul>";
         }
 
@@ -131,7 +132,7 @@ namespace JotunnDoc.Docs
             }
             return $"<ul>" +
                 $"<li>Name: {location.m_interiorPrefab.name}</li>" +
-                $"<li>Radius: {zoneLocation.m_interiorRadius}</li>" +
+                $"<li>Radius: {zoneLocation.m_interiorRadius.ToString()}</li>" +
                 $"<li>Environment: {location.m_interiorEnvironment}</li>" +
                 $"</ul>";
         }
@@ -167,11 +168,11 @@ namespace JotunnDoc.Docs
             StringBuilder biomeAreas = new StringBuilder("<ul>");
             foreach (Heightmap.BiomeArea area in Enum.GetValues(typeof(Heightmap.BiomeArea)))
             {
-                if (area == Heightmap.BiomeArea.Everything || (biomeArea & area) == 0)
+                if (area == Heightmap.BiomeArea.Everything || (int)(biomeArea & area) == 0)
                 {
                     continue;
                 }
-                biomeAreas.Append($"<li>{area}</li>");
+                biomeAreas.Append($"<li>{EnumName(area)}</li>");
             }
 
             biomeAreas.Append("</ul>");
@@ -185,7 +186,7 @@ namespace JotunnDoc.Docs
 
             foreach (Heightmap.Biome area in ZoneManager.GetMatchingBiomes(biome))
             {
-                biomeAreas.Append($"<li>{area}</li>");
+                biomeAreas.Append($"<li>{EnumName(area)}</li>");
             }
 
             biomeAreas.Append("</ul>");

@@ -475,7 +475,7 @@ namespace Jotunn.Managers
         private static bool TopologicalSortUtil(Type node, HashSet<Type> visited, HashSet<Type> recursionStack, List<Type> result)
         {
             // Type already processed
-            if (visited.Contains(node)) return true;           
+            if (visited.Contains(node)) return true;
             List<Type> tailList = null;
 
             //check if supertype is already in list, split list to insert dependencies of sub type before super type
@@ -506,19 +506,25 @@ namespace Jotunn.Managers
             else result.Add(node);
 
             recursionStack.Remove(node);
-            visited.Add(node);            
+            visited.Add(node);
 
             return true;
         }
 
-        private static List<Type> GetComponentDependencies(Type node) {
-            if (!componentDependencies.TryGetValue(node, out List<Type> dependencies)) {
+        private static List<Type> GetComponentDependencies(Type node)
+        {
+            if (!componentDependencies.TryGetValue(node, out List<Type> dependencies))
+            {
                 dependencies = new List<Type>();
 
-                foreach (RequireComponent requirement in node.GetCustomAttributes<RequireComponent>(true)) {
-                    dependencies.Add(requirement.m_Type0);
-                    dependencies.Add(requirement.m_Type1);
-                    dependencies.Add(requirement.m_Type2);
+                foreach (var attr in node.GetCustomAttributes(typeof(RequireComponent), true))
+                {
+                    if (attr is RequireComponent requirement)
+                    {
+                        dependencies.Add(requirement.m_Type0);
+                        dependencies.Add(requirement.m_Type1);
+                        dependencies.Add(requirement.m_Type2);
+                    }
                 }
 
                 dependencies = dependencies.Where(t => t != null).Distinct().ToList();
@@ -618,7 +624,7 @@ namespace Jotunn.Managers
             /// <summary>
             ///     Callback for the generated <see cref="Sprite"/>
             /// </summary>
-            [Obsolete]
+            [Obsolete("Use the synchronous Render(RenderRequest) return value instead.")]
             public Action<Sprite> Callback { get; internal set; }
 
             /// <summary>

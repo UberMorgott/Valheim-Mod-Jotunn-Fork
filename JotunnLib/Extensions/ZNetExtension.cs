@@ -1,4 +1,4 @@
-﻿namespace Jotunn
+namespace Jotunn
 {
     /// <summary>
     ///     Extends ZNet with a clear diversion between local, client and server instances.
@@ -98,7 +98,7 @@
 
             if (peer == null)
             {
-                Logger.LogWarning($"IsAdmin check failed: peer not found with id {uid}");
+                Logger.LogWarning($"IsAdmin check failed: peer not found with id {uid.ToString()}");
                 return false;
             }
 

@@ -10,7 +10,7 @@ namespace Jotunn.Utils
         /// <summary>
         ///     Invoke patch initialization methods for all loaded mods.
         /// </summary>
-        [Obsolete]
+        [Obsolete("Use Harmony patching directly instead.")]
         internal static void InitializePatches()
         {
             List<Tuple<MethodInfo, int>> types = new List<Tuple<MethodInfo, int>>();
@@ -37,11 +37,13 @@ namespace Jotunn.Utils
                         try
                         {
                             // on methods with the PatchInit attribute
-                            foreach (var method in type.GetMethods(BindingFlags.Static | BindingFlags.Public)
-                                         .Where(x => x.GetCustomAttributes(typeof(PatchInitAttribute), false).Length == 1))
+                            foreach (var method in type.GetMethods(BindingFlags.Static | BindingFlags.Public))
                             {
-                                var attribute = method.GetCustomAttributes(typeof(PatchInitAttribute), false).FirstOrDefault() as PatchInitAttribute;
-                                types.Add(new Tuple<MethodInfo, int>(method, attribute.Priority));
+                                var attributes = method.GetCustomAttributes(typeof(PatchInitAttribute), false);
+                                if (attributes.Length == 1 && attributes[0] is PatchInitAttribute attribute)
+                                {
+                                    types.Add(new Tuple<MethodInfo, int>(method, attribute.Priority));
+                                }
                             }
                         }
                         catch (Exception)
@@ -54,8 +56,10 @@ namespace Jotunn.Utils
                 }
             }
 
+            types.Sort((a, b) => a.Item2.CompareTo(b.Item2));
+
             // Invoke the method
-            foreach (Tuple<MethodInfo, int> tuple in types.OrderBy(x => x.Item2))
+            foreach (Tuple<MethodInfo, int> tuple in types)
             {
                 Jotunn.Logger.LogDebug($"Applying patches in {tuple.Item1.DeclaringType.Name}.{tuple.Item1.Name}");
                 tuple.Item1.Invoke(null, null);

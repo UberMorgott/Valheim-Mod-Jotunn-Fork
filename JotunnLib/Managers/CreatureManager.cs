@@ -149,7 +149,14 @@ namespace Jotunn.Managers
         /// <returns>The <see cref="CustomCreature"/> if found.</returns>
         public CustomCreature GetCreature(string creatureName)
         {
-            return Creatures.FirstOrDefault(x => x.Prefab.name.Equals(creatureName));
+            foreach (var creature in Creatures)
+            {
+                if (creature.Prefab.name.Equals(creatureName, StringComparison.Ordinal))
+                {
+                    return creature;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -218,9 +225,9 @@ namespace Jotunn.Managers
         /// </summary>
         private void FixReferences(ZNetScene self)
         {
-            if (Creatures.Any())
+            if (Creatures.Count > 0)
             {
-                Logger.LogInfo($"Adding {Creatures.Count} custom creatures");
+                Logger.LogInfo($"Adding {Creatures.Count.ToString()} custom creatures");
 
                 List<CustomCreature> toDelete = new List<CustomCreature>();
 
@@ -239,7 +246,7 @@ namespace Jotunn.Managers
                             customCreature.FixConfig = false;
                         }
 
-                        Logger.LogDebug($"Added creature {customCreature} | Spawns: {customCreature.Spawns.Count}");
+                        Logger.LogDebug($"Added creature {customCreature} | Spawns: {customCreature.Spawns.Count.ToString()}");
                     }
                     catch (Exception ex)
                     {
@@ -293,7 +300,17 @@ namespace Jotunn.Managers
                 return;
             }
 
-            if (!Creatures.Any(x => x.Prefab.name == self.m_character.m_nview.GetPrefabName() && x.UseCumulativeLevelEffects))
+            string prefabName = self.m_character.m_nview.GetPrefabName();
+            bool useCumulative = false;
+            foreach (var creature in Creatures)
+            {
+                if (creature.Prefab.name == prefabName && creature.UseCumulativeLevelEffects)
+                {
+                    useCumulative = true;
+                    break;
+                }
+            }
+            if (!useCumulative)
             {
                 return;
             }
@@ -309,7 +326,7 @@ namespace Jotunn.Managers
 
                 if (levelSetup.m_enableObject)
                 {
-                    Logger.LogDebug($"Enabling {(level - 1)} star equipment: '{levelSetup.m_enableObject.name}'");
+                    Logger.LogDebug($"Enabling {(level - 1).ToString()} star equipment: '{levelSetup.m_enableObject.name}'");
                     levelSetup.m_enableObject.SetActive(true);
                 }
             }

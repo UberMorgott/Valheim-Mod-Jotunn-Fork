@@ -1,4 +1,6 @@
-﻿using System.IO;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using BepInEx.Configuration;
 using Jotunn.Managers;
@@ -43,7 +45,7 @@ namespace JotunnDoc
 
             for (int i = 0; i < size; i++)
             {
-                text.Append("#");
+                text.Append('#');
             }
 
             text.Append(" " + headerText);
@@ -79,7 +81,7 @@ namespace JotunnDoc
             {
                 if (!string.IsNullOrEmpty(val))
                 {
-                    text.Append(string.Join("<br/>", val.TrimEnd('\r','\n').Split('\r','\n')));
+                    text.Append(string.Join("<br/>", val.TrimEnd('\r', '\n').Split('\r', '\n')));
                 }
                 text.Append('|');
             }
@@ -108,7 +110,37 @@ namespace JotunnDoc
             {
                 return m_min.ToString();
             }
-            return $"{m_min} - {m_max}";
+            return $"{m_min.ToString()} - {m_max.ToString()}";
+        }
+
+        internal static string EnumName<T>(T value) where T : struct, Enum
+        {
+            return EnumNames<T>.Get(value);
+        }
+
+        private static class EnumNames<T> where T : struct, Enum
+        {
+            private static readonly Dictionary<T, string> Map = Build();
+
+            private static Dictionary<T, string> Build()
+            {
+                var values = (T[])Enum.GetValues(typeof(T));
+                var names = Enum.GetNames(typeof(T));
+                var map = new Dictionary<T, string>(values.Length);
+                for (int i = 0; i < values.Length; i++)
+                {
+                    if (!map.ContainsKey(values[i]))
+                    {
+                        map.Add(values[i], names[i]);
+                    }
+                }
+                return map;
+            }
+
+            public static string Get(T value)
+            {
+                return Map.TryGetValue(value, out var name) ? name : string.Empty;
+            }
         }
 
         internal static bool RequestSprite(string path, GameObject prefab, Quaternion rotation)

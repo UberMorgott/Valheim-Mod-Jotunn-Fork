@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Jotunn.Entities;
@@ -46,7 +46,8 @@ namespace JotunnDoc.Docs
             Dictionary<string, Material> mats = new Dictionary<string, Material>();
             Dictionary<string, List<string>> matPrefabs = new Dictionary<string, List<string>>();
 
-            foreach (GameObject prefab in allPrefabs.Where(x => !CustomPrefab.IsCustomPrefab(x.name)).OrderBy(x => x.name))
+            var sortedPrefabs = allPrefabs.Where(x => !CustomPrefab.IsCustomPrefab(x.name)).OrderBy(x => x.name).ToList();
+            foreach (GameObject prefab in sortedPrefabs)
             {
                 foreach (Material mat in ShaderHelper.GetAllRendererMaterials(prefab))
                 {
@@ -61,18 +62,19 @@ namespace JotunnDoc.Docs
                     }
 
                     // Add prefab per material
-                    if (!matPrefabs.ContainsKey(matName))
+                    if (!matPrefabs.TryGetValue(matName, out var prefabList))
                     {
-                        matPrefabs.Add(matName, new List<string>());
+                        prefabList = new List<string>();
+                        matPrefabs.Add(matName, prefabList);
                     }
 
-                    matPrefabs[matName].Add(prefab.name);
+                    prefabList.Add(prefab.name);
                 }
             }
 
             mats = mats.OrderBy(x => x.Key).ToDictionary(x => x.Key, x => x.Value);
-            var materialsAM = mats.Where(p => p.Key.Length >= 1 && p.Key.ToLower()[0] < 'm');
-            var materialsMZ = mats.Where(p => p.Key.Length >= 1 && p.Key.ToLower()[0] >= 'm');
+            var materialsAM = mats.Where(p => p.Key.Length >= 1 && char.ToLowerInvariant(p.Key[0]) < 'm').ToList();
+            var materialsMZ = mats.Where(p => p.Key.Length >= 1 && char.ToLowerInvariant(p.Key[0]) >= 'm').ToList();
 
             AddTableHeader("Material", "AssetID", "Prefabs", "Shader", "Keywords");
 
@@ -91,10 +93,12 @@ namespace JotunnDoc.Docs
             Save();
         }
 
-        private void AddEntry(Dictionary<string, List<string>> matPrefabs, string key, Material mat) {
+        private void AddEntry(Dictionary<string, List<string>> matPrefabs, string key, Material mat)
+        {
             StringBuilder prefabsb = new StringBuilder();
             prefabsb.Append("<ul>");
-            foreach (string prefab in matPrefabs[key].Distinct().OrderBy(x => x)) {
+            foreach (string prefab in matPrefabs[key].Distinct().OrderBy(x => x).ToList())
+            {
                 prefabsb.Append("<li>");
                 prefabsb.Append(prefab);
                 prefabsb.Append("</li>");
@@ -104,8 +108,10 @@ namespace JotunnDoc.Docs
 
             StringBuilder keysb = new StringBuilder();
             keysb.Append("<dl>");
-            if (mat.shaderKeywords.Length > 0) {
-                foreach (string prop in mat.shaderKeywords) {
+            if (mat.shaderKeywords.Length > 0)
+            {
+                foreach (string prop in mat.shaderKeywords)
+                {
                     keysb.Append("<dd>");
                     keysb.Append(prop);
                     keysb.Append("</dd>");

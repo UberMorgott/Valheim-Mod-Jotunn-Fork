@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Jotunn.Utils;
 
-namespace Jotunn {
+namespace Jotunn
+{
     internal class ClassMember
     {
         public List<MemberBase> Members { get; private set; } = new List<MemberBase>();
@@ -12,7 +13,7 @@ namespace Jotunn {
 
         private static readonly Dictionary<Type, ClassMember> CachedClassMembers = new Dictionary<Type, ClassMember>();
 
-        private ClassMember(Type type, IEnumerable<FieldInfo> fieldInfos, IEnumerable<PropertyInfo> propertyInfos)
+        private ClassMember(Type type, FieldInfo[] fieldInfos, PropertyInfo[] propertyInfos)
         {
             this.Type = type;
 

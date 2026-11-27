@@ -16,7 +16,7 @@ namespace Jotunn.Extensions
             public Dictionary<string, int> sectionToSettingOrder = new Dictionary<string, int>();
         }
         private static readonly Dictionary<string, ConfigFileOrderingMaps> _configFileOrderingMaps = new Dictionary<string, ConfigFileOrderingMaps>();
-        
+
         /// <summary>
         ///     Formats section name as "{sectionNumber} - {section}" based on how
         ///     many sections have been bound to this config.
@@ -31,16 +31,16 @@ namespace Jotunn.Extensions
                 orderingMaps = new ConfigFileOrderingMaps();
                 _configFileOrderingMaps.Add(configFile.ConfigFilePath, orderingMaps);
             }
-        
+
             if (!orderingMaps.sectionToSectionNumber.TryGetValue(section, out int number))
             {
                 number = orderingMaps.sectionToSectionNumber.Count + 1;
                 orderingMaps.sectionToSectionNumber[section] = number;
             }
-        
-            return $"{number} - {section}";
+
+            return $"{number.ToString()} - {section}";
         }
-        
+
         /// <summary>
         ///     Orders settings within a section.
         /// </summary>
@@ -54,16 +54,16 @@ namespace Jotunn.Extensions
                 orderingMaps = new ConfigFileOrderingMaps();
                 _configFileOrderingMaps.Add(configFile.ConfigFilePath, orderingMaps);
             }
-        
+
             if (!orderingMaps.sectionToSettingOrder.TryGetValue(section, out int order))
             {
                 order = 0;
             }
-        
+
             orderingMaps.sectionToSettingOrder[section] = order - 1;
             return order;
         }
-                
+
         internal static string GetExtendedDescription(string description, bool synchronizedSetting)
         {
             return description + (synchronizedSetting ? " [Synced with Server]" : " [Not Synced with Server]");

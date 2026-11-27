@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Jotunn.Entities;
@@ -49,13 +49,14 @@ namespace JotunnDoc.Docs
 
             for (int i = 0; i < splitCount; i++)
             {
-                var chunk = allPrefabs.Skip(i * chunkSize).Take(chunkSize);
+                int start = i * chunkSize;
+                int end = Math.Min(start + chunkSize, allPrefabs.Count);
 
                 AddTableHeader("Name", "AssetID", "Token", "English Name", "Components", "Components in Children");
 
-                foreach (GameObject obj in chunk)
+                for (int j = start; j < end; j++)
                 {
-                    AddPrefabTableRow(obj);
+                    AddPrefabTableRow(allPrefabs[j]);
                 }
             }
 
@@ -81,7 +82,8 @@ namespace JotunnDoc.Docs
         {
             string result = "<ul>";
 
-            foreach (Type comp in components.Where(c => c).Select(c => c.GetType()).Where(c => c != typeof(Transform)).Distinct())
+            var types = components.Where(c => c).Select(c => c.GetType()).Where(c => c != typeof(Transform)).Distinct().ToList();
+            foreach (Type comp in types)
             {
                 result += $"<li>{comp.Name}</li>";
             }

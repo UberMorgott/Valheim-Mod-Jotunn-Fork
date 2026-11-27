@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,7 +23,7 @@ namespace Jotunn.Managers
             ///     Description of this action to show on the queue's history.
             /// </summary>
             string Description();
-            
+
             /// <summary>
             ///     Code to revert whatever was executed.
             /// </summary>
@@ -96,7 +96,7 @@ namespace Jotunn.Managers
                 }
             }
         }
-        
+
         /// <summary>
         ///     Add a message to the console or in the player HUD
         /// </summary>
@@ -130,7 +130,7 @@ namespace Jotunn.Managers
                 player.Message(MessageHud.MessageType.TopLeft, message);
             }
         }
-        
+
         /// <summary>
         ///     Manually create a new queue by name and return it. If the queue already exists
         ///     no new queue is created but the existing is returned.
@@ -168,7 +168,7 @@ namespace Jotunn.Managers
             }
             return queue;
         }
-        
+
         /// <summary>
         ///     Add a new action to a queue.<br/>
         ///     If a queue with the provided name does not exist it is automatically created.
@@ -192,7 +192,7 @@ namespace Jotunn.Managers
         /// <param name="queueName">Global name of the queue</param>
         /// <returns>true if an action was redone, false if no actions exist or the action failed</returns>
         public bool Redo(string queueName) => GetQueue(queueName).Redo();
-        
+
         /// <summary>
         ///     Undo queue implementation.
         /// </summary>
@@ -203,7 +203,7 @@ namespace Jotunn.Managers
             private List<IUndoAction> History = new List<IUndoAction>();
             private int Index = -1;
             private bool Executing = false;
-            
+
             internal UndoQueue(string name)
             {
                 Name = name;
@@ -219,7 +219,7 @@ namespace Jotunn.Managers
                 Name = name;
                 MaxSteps = maxSteps;
             }
-            
+
             /// <summary>
             ///     Add a new action to this queue.
             /// </summary>
@@ -263,7 +263,7 @@ namespace Jotunn.Managers
                 }
                 catch (Exception e)
                 {
-                    Logger.LogWarning($"Exception thrown at index {Index} in queue {Name}:\n{e}");
+                    Logger.LogWarning($"Exception thrown at index {Index.ToString()} in queue {Name}:\n{e}");
                     ret = false;
                 }
                 Index--;
@@ -289,7 +289,7 @@ namespace Jotunn.Managers
                     }
                     catch (Exception e)
                     {
-                        Logger.LogWarning($"Exception thrown at index {Index} in queue {Name}:\n{e}");
+                        Logger.LogWarning($"Exception thrown at index {Index.ToString()} in queue {Name}:\n{e}");
                         ret = false;
                     }
                     Executing = false;
@@ -318,7 +318,7 @@ namespace Jotunn.Managers
             ///     Get a string array of this queue's current history.
             /// </summary>
             public string[] GetHistory() => History.Select(x => x.Description()).ToArray();
-            
+
             /// <inheritdoc/>
             public override string ToString()
             {
@@ -333,7 +333,7 @@ namespace Jotunn.Managers
                     int idx = 0;
                     foreach (var action in History)
                     {
-                        sb.AppendLine($"[{idx:00}{(Index==idx?"*":" ")}] {action.Description()}");
+                        sb.AppendLine($"[{idx.ToString("00")}{(Index == idx ? "*" : " ")}] {action.Description()}");
                         ++idx;
                     }
                 }

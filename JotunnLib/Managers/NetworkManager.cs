@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -82,14 +82,15 @@ namespace Jotunn.Managers
         /// <returns>Existing or newly created <see cref="CustomRPC"/>.</returns>
         internal CustomRPC AddRPC(BepInPlugin sourceMod, string name, CoroutineHandler serverReceive, CoroutineHandler clientReceive)
         {
-            var ret = RPCs.FirstOrDefault(x => x.SourceMod == sourceMod && x.Name == name);
-
-            if (ret != null)
+            foreach (var existing in RPCs)
             {
-                return ret;
+                if (existing.SourceMod == sourceMod && existing.Name == name)
+                {
+                    return existing;
+                }
             }
 
-            ret = new CustomRPC(sourceMod, name, serverReceive, clientReceive);
+            var ret = new CustomRPC(sourceMod, name, serverReceive, clientReceive);
             RPCs.Add(ret);
             return ret;
         }
@@ -99,12 +100,12 @@ namespace Jotunn.Managers
         /// </summary>
         private void Game_Start()
         {
-            if (!RPCs.Any())
+            if (RPCs.Count == 0)
             {
                 return;
             }
 
-            Logger.LogInfo($"Registering {RPCs.Count} custom RPCs");
+            Logger.LogInfo($"Registering {RPCs.Count.ToString()} custom RPCs");
 
             foreach (var rpc in RPCs)
             {

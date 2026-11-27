@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using BepInEx.Configuration;
 using Jotunn.Utils;
 using UnityEngine;
@@ -49,7 +49,7 @@ namespace Jotunn.Configs
 
                 if (gamepadButton != GamepadButton.None)
                 {
-                    Logger.LogWarning($"ButtonConfig: Key {value} is a GamepadButton, setting GamepadButton instead");
+                    Logger.LogWarning($"ButtonConfig: Key {EnumNameCache.GetName(value, (int)value)} is a GamepadButton, setting GamepadButton instead");
                     GamepadButton = gamepadButton;
                 }
                 else
@@ -110,7 +110,7 @@ namespace Jotunn.Configs
 
                 if (gamepadButton != GamepadButton.None)
                 {
-                    Logger.LogWarning($"ButtonConfig: Shortcut {value.MainKey} is a GamepadButton, setting GamepadButton instead");
+                    Logger.LogWarning($"ButtonConfig: Shortcut {EnumNameCache.GetName(value.MainKey, (int)value.MainKey)} is a GamepadButton, setting GamepadButton instead");
                     GamepadButton = gamepadButton;
                 }
                 else
@@ -171,7 +171,7 @@ namespace Jotunn.Configs
         ///     Interval in which the check timer for the repeat delay is decremented.
         /// </summary>
         public float RepeatInterval { get; set; } = 0.0f;
-        
+
         /// <summary>
         ///     Key hint text, overrides HintToken when set
         /// </summary>

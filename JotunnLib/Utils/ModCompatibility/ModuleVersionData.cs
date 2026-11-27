@@ -110,8 +110,8 @@ namespace Jotunn.Utils
                         catch (NotSupportedException ex)
                         {
                             pkg.SetPos(currentPos);  // get data layout version
-                            this.ModModuleDataLayout = pkg.ReadInt(); 
-                            Logger.LogError($"Could not parse unsupported data layout version {ModModuleDataLayout} from zPackage");
+                            this.ModModuleDataLayout = pkg.ReadInt();
+                            Logger.LogError($"Could not parse unsupported data layout version {ModModuleDataLayout.ToString()} from zPackage");
                             Logger.LogError(ex.Message);
 
                             // abort reading as the start of the next ModModule is unknown
@@ -122,7 +122,7 @@ namespace Jotunn.Utils
                     // overwrite Modules to replace legacy ModModule formatted data with current ModModule formatted data
                     Modules = modModules;
                     ModModuleDataLayout = GetModModuleDataLayoutVersion(Modules);
-                }               
+                }
             }
             catch (Exception ex)
             {
@@ -177,7 +177,7 @@ namespace Jotunn.Utils
 
             if (string.IsNullOrEmpty(VersionString))
             {
-                sb.AppendLine($"Valheim {ValheimVersion.Major}.{ValheimVersion.Minor}.{ValheimVersion.Build}");
+                sb.AppendLine($"Valheim {ValheimVersion.Major.ToString()}.{ValheimVersion.Minor.ToString()}.{ValheimVersion.Build.ToString()}");
             }
             else
             {
@@ -186,7 +186,7 @@ namespace Jotunn.Utils
 
             foreach (var mod in Modules)
             {
-                sb.AppendLine($"{mod.ModName} {mod.GetVersionString()} {mod.CompatibilityLevel} {mod.VersionStrictness}");
+                sb.AppendLine($"{mod.ModName} {mod.GetVersionString()} {EnumNameCache.GetName(mod.CompatibilityLevel, (int)mod.CompatibilityLevel)} {EnumNameCache.GetName(mod.VersionStrictness, (int)mod.VersionStrictness)}");
             }
 
             return sb.ToString();
@@ -201,12 +201,12 @@ namespace Jotunn.Utils
 
             if (string.IsNullOrEmpty(versionString))
             {
-                versionString = $"Valheim {ValheimVersion.Major}.{ValheimVersion.Minor}.{ValheimVersion.Build}";
+                versionString = $"Valheim {ValheimVersion.Major.ToString()}.{ValheimVersion.Minor.ToString()}.{ValheimVersion.Build.ToString()}";
             }
 
             if (NetworkVersion > 0)
             {
-                sb.AppendLine($"Valheim {versionString} (n-{NetworkVersion})");
+                sb.AppendLine($"Valheim {versionString} (n-{NetworkVersion.ToString()})");
             }
             else
             {
@@ -215,7 +215,7 @@ namespace Jotunn.Utils
 
             foreach (var mod in Modules)
             {
-                sb.AppendLine($"{mod.ModName} {mod.GetVersionString()}" + (showEnforce ? $" {mod.CompatibilityLevel} {mod.VersionStrictness}" : ""));
+                sb.AppendLine($"{mod.ModName} {mod.GetVersionString()}" + (showEnforce ? $" {EnumNameCache.GetName(mod.CompatibilityLevel, (int)mod.CompatibilityLevel)} {EnumNameCache.GetName(mod.VersionStrictness, (int)mod.VersionStrictness)}" : ""));
             }
 
             return sb.ToString();
@@ -225,10 +225,24 @@ namespace Jotunn.Utils
         {
             if (legacyDataLayout)
             {
-                return Modules.FirstOrDefault(x => x.ModName == modModule.ModName);
+                foreach (var x in Modules)
+                {
+                    if (x.ModName == modModule.ModName)
+                    {
+                        return x;
+                    }
+                }
+                return null;
             }
 
-            return Modules.FirstOrDefault(x => x.ModID == modModule.ModID);
+            foreach (var x in Modules)
+            {
+                if (x.ModID == modModule.ModID)
+                {
+                    return x;
+                }
+            }
+            return null;
         }
 
         public bool HasModule(ModModule modModule, bool legacyDataLayout)
@@ -244,13 +258,22 @@ namespace Jotunn.Utils
 
         private static int GetModModuleDataLayoutVersion(List<ModModule> modules)
         {
-            // Handle tracking ModModule data layouts 
-            if (modules.Any(x => x.DataLayoutVersion != modules.FirstOrDefault()?.DataLayoutVersion))
+            if (modules.Count == 0)
             {
-                throw new NotSupportedException("DataVersionLayout is not the same for all ModModule instances.");
+                return ModModule.CurrentDataLayoutVersion;
             }
 
-            return modules.FirstOrDefault()?.DataLayoutVersion ?? ModModule.CurrentDataLayoutVersion;
+            int expectedLayout = modules[0].DataLayoutVersion;
+            // Handle tracking ModModule data layouts 
+            for (int i = 1; i < modules.Count; i++)
+            {
+                if (modules[i].DataLayoutVersion != expectedLayout)
+                {
+                    throw new NotSupportedException("DataVersionLayout is not the same for all ModModule instances.");
+                }
+            }
+
+            return expectedLayout;
         }
     }
 }

@@ -157,7 +157,7 @@ namespace Jotunn.Managers
 
             [HarmonyPatch(typeof(ByUsagePieceList), nameof(ByUsagePieceList.GetTagById)), HarmonyPrefix]
             private static void ByUsagePieceList_GetTagById_Patch(ByUsagePieceList __instance, ref bool __runOriginal, int id, ref Piece.UsageTagFlags __result) => Instance.PatchGetTagById(__instance, ref __runOriginal, id, ref __result);
-            
+
             [HarmonyPatch(typeof(ByUsagePieceList), nameof(ByUsagePieceList.GetAvailablePiecesWithTag)), HarmonyTranspiler]
             private static IEnumerable<CodeInstruction> ByUsagePieceList_GetAvailablePiecesWithTag_Transpiler(IEnumerable<CodeInstruction> instructions) => Instance.ReplaceWithSafeGetTagById(instructions);
         }
@@ -240,14 +240,14 @@ namespace Jotunn.Managers
         /// <returns><see cref="PieceTable"/> component</returns>
         public PieceTable GetPieceTable(string name)
         {
-            if (PieceTableMap.ContainsKey(name))
+            if (PieceTableMap.TryGetValue(name, out var pieceTable))
             {
-                return PieceTableMap[name];
+                return pieceTable;
             }
 
-            if (PieceTableNameMap.ContainsKey(name))
+            if (PieceTableNameMap.TryGetValue(name, out var prefabName))
             {
-                return PieceTableMap[PieceTableNameMap[name]];
+                return PieceTableMap[prefabName];
             }
 
             return null;
@@ -291,8 +291,8 @@ namespace Jotunn.Managers
                 return flags;
             }
 
-            var prefabName = piece.name.ToLower();
-            var localizedName = Localization.instance.Localize(piece.m_name).ToLower();
+            var prefabName = piece.name.ToLowerInvariant();
+            var localizedName = Localization.instance.Localize(piece.m_name).ToLowerInvariant();
 
             if (piece.GetComponent<Container>() || piece.GetComponent<ItemStand>())
                 flags |= Piece.UsageTagFlags.Storage;
@@ -591,12 +591,12 @@ namespace Jotunn.Managers
         /// </summary>
         private void RegisterInPieceTables()
         {
-            if (!Pieces.Any())
+            if (Pieces.Count == 0)
             {
                 return;
             }
 
-            Logger.LogInfo($"Adding {Pieces.Count} custom pieces to the PieceTables");
+            Logger.LogInfo($"Adding {Pieces.Count.ToString()} custom pieces to the PieceTables");
 
             List<CustomPiece> toDelete = new List<CustomPiece>();
 
@@ -705,7 +705,7 @@ namespace Jotunn.Managers
             {
                 piece.m_usage = PieceUtils.UsageTagFlagsFromStrings(usage);
             }
-            else if (piece.m_usage == 0)
+            else if ((int)piece.m_usage == 0)
             {
                 piece.m_usage = FindUsageTagFlags(piece, GuessesUsage(table));
             }
@@ -720,8 +720,14 @@ namespace Jotunn.Managers
         /// </summary>
         private bool GuessesUsage(PieceTable table)
         {
-            var customPieceTable = PieceTables.FirstOrDefault(x => x.PieceTable == table);
-            return customPieceTable == null || customPieceTable.GuessUsage;
+            foreach (var customPieceTable in PieceTables)
+            {
+                if (customPieceTable.PieceTable == table)
+                {
+                    return customPieceTable.GuessUsage;
+                }
+            }
+            return true;
         }
 
         private struct CustomUsageTag
@@ -826,9 +832,11 @@ namespace Jotunn.Managers
         {
             var GetTagByIdMethod = AccessTools.Method(typeof(ByUsagePieceList), nameof(ByUsagePieceList.GetTagById));
             var SafeGetTagByIdMethod = AccessTools.Method(typeof(PieceManager), nameof(SafeGetTagById));
+            var instructionList = instructions as IList<CodeInstruction> ?? new List<CodeInstruction>(instructions);
 
-            foreach (var instruction in instructions)
+            for (int i = 0; i < instructionList.Count; i++)
             {
+                var instruction = instructionList[i];
                 if (instruction.Calls(GetTagByIdMethod))
                 {
                     instruction.opcode = OpCodes.Call;
@@ -873,7 +881,7 @@ namespace Jotunn.Managers
         /// <param name="self"></param>
         private void ReloadKnownRecipes(Player self)
         {
-            if (!Pieces.Any())
+            if (Pieces.Count == 0)
             {
                 return;
             }
@@ -900,9 +908,12 @@ namespace Jotunn.Managers
         private static IEnumerable<CodeInstruction> TranspileMaxCategory(IEnumerable<CodeInstruction> instructions, int maxOffset)
         {
             int number = (int)PieceUtils.VanillaMaxPieceCategory + maxOffset;
+            var instructionList = instructions as IList<CodeInstruction> ?? new List<CodeInstruction>(instructions);
+            object boxedOffset = maxOffset != 0 ? new[] { maxOffset }.GetValue(0) : null;
 
-            foreach (CodeInstruction instruction in instructions)
+            for (int i = 0; i < instructionList.Count; i++)
             {
+                CodeInstruction instruction = instructionList[i];
                 if (instruction.opcode == OpCodes.Call && instruction.operand is MethodInfo methodInfo && methodInfo.Name.Contains("MaxCategory"))
                 {
                     // other mods may have an old implementaion of MaxCategory, override them
@@ -914,7 +925,7 @@ namespace Jotunn.Managers
 
                     if (maxOffset != 0)
                     {
-                        yield return new CodeInstruction(OpCodes.Ldc_I4, maxOffset);
+                        yield return new CodeInstruction(OpCodes.Ldc_I4, boxedOffset);
                         yield return new CodeInstruction(OpCodes.Add);
                     }
                 }
@@ -1048,7 +1059,7 @@ namespace Jotunn.Managers
         private string GetCategoryToken(string name)
         {
             char[] forbiddenCharsArray = LocalizationManager.ForbiddenChars.ToCharArray();
-            string tokenCategory = string.Join("_", name.ToLower().Split(forbiddenCharsArray));
+            string tokenCategory = string.Join("_", name.ToLowerInvariant().Split(forbiddenCharsArray));
             return $"jotunn_cat_{tokenCategory}";
         }
 

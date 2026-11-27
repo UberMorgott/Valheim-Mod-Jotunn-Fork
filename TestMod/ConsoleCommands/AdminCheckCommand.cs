@@ -1,4 +1,4 @@
-﻿using Jotunn;
+using Jotunn;
 using Jotunn.Entities;
 
 namespace TestMod.ConsoleCommands
@@ -13,7 +13,7 @@ namespace TestMod.ConsoleCommands
         {
             foreach (var peer in ZNet.instance.GetPeers())
             {
-                Logger.LogInfo($"Is {peer.m_playerName}/{peer.m_uid} Admin: {ZNet.instance.IsAdmin(peer.m_uid)}");
+                Logger.LogInfo($"Is {peer.m_playerName}/{peer.m_uid.ToString()} Admin: {ZNet.instance.IsAdmin(peer.m_uid).ToString()}");
             }
         }
     }

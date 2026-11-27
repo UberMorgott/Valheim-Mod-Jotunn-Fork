@@ -1,6 +1,7 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Jotunn.Configs;
 using Jotunn.Managers;
+using Jotunn.Utils;
 
 namespace Jotunn.Entities
 {
@@ -134,7 +135,7 @@ namespace Jotunn.Entities
         /// <inheritdoc/>
         public override string ToString()
         {
-            return $"{Config.Station} ({Type}): {Config.FromItem} -> {Config.ToItem}";
+            return $"{Config.Station} ({EnumNameCache.GetName(Type, (int)Type)}): {Config.FromItem} -> {Config.ToItem}";
         }
     }
 }

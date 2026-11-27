@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using HarmonyLib;
 using Mono.Cecil.Cil;
@@ -53,14 +53,58 @@ namespace Jotunn.Utils
             }
         }
 
+        private static ExtEquipment CurrentRightHandInstance;
+        private static ExtEquipment CurrentRightBackInstance;
+        private static ExtEquipment CurrentChestInstance;
+
+        private static int ApplyRightHandHash(int hash, VisEquipment self)
+        {
+            if (Instances.TryGetValue(self, out CurrentRightHandInstance) && hash != 0 &&
+                CurrentRightHandInstance.CurrentRightItemVariant != CurrentRightHandInstance.NewRightItemVariant)
+            {
+                CurrentRightHandInstance.CurrentRightItemVariant = CurrentRightHandInstance.NewRightItemVariant;
+                return hash + CurrentRightHandInstance.CurrentRightItemVariant;
+            }
+            return hash;
+        }
+
+        private static int GetRightHandVariant(int variant) =>
+            CurrentRightHandInstance != null ? CurrentRightHandInstance.CurrentRightItemVariant : variant;
+
+        private static int ApplyRightBackHash(int hash, VisEquipment self)
+        {
+            if (Instances.TryGetValue(self, out CurrentRightBackInstance) && hash != 0 &&
+                CurrentRightBackInstance.CurrentRightBackItemVariant != CurrentRightBackInstance.NewRightBackItemVariant)
+            {
+                CurrentRightBackInstance.CurrentRightBackItemVariant = CurrentRightBackInstance.NewRightBackItemVariant;
+                return hash + CurrentRightBackInstance.CurrentRightBackItemVariant;
+            }
+            return hash;
+        }
+
+        private static int GetRightBackVariant(int variant) =>
+            CurrentRightBackInstance != null ? CurrentRightBackInstance.CurrentRightBackItemVariant : variant;
+
+        private static int ApplyChestHash(int hash, VisEquipment self)
+        {
+            if (Instances.TryGetValue(self, out CurrentChestInstance) && hash != 0 &&
+                CurrentChestInstance.CurrentChestVariant != CurrentChestInstance.NewChestVariant)
+            {
+                CurrentChestInstance.CurrentChestVariant = CurrentChestInstance.NewChestVariant;
+                return hash + CurrentChestInstance.CurrentChestVariant;
+            }
+            return hash;
+        }
+
+        private static int GetChestVariant(int variant) =>
+            CurrentChestInstance != null ? CurrentChestInstance.CurrentChestVariant : variant;
+
         /// <summary>
         ///     Check for variant changes and pass the variant to AttachItem
         /// </summary>
         [HarmonyPatch(typeof(VisEquipment), nameof(VisEquipment.SetRightHandEquipped)), HarmonyILManipulator]
         private static void VisEquipment_SetRightHandEquiped(ILContext il)
         {
-            ExtEquipment instance = null;
-
             ILCursor c = new ILCursor(il);
 
             // Change hash if variant is different
@@ -68,17 +112,7 @@ namespace Jotunn.Utils
                 x => x.MatchLdarg(1)))
             {
                 c.Emit(OpCodes.Ldarg_0);
-                c.EmitDelegate<Func<int, VisEquipment, int>>((hash, self) =>
-                {
-                    if (Instances.TryGetValue(self, out instance) && hash != 0 &&
-                        instance.CurrentRightItemVariant != instance.NewRightItemVariant)
-                    {
-                        instance.CurrentRightItemVariant = instance.NewRightItemVariant;
-                        return hash + instance.CurrentRightItemVariant;
-                    }
-                    return hash;
-                });
-
+                c.EmitDelegate<Func<int, VisEquipment, int>>(ApplyRightHandHash);
             }
 
             // Pass current variant to AttachItem
@@ -88,7 +122,7 @@ namespace Jotunn.Utils
                 x => x.MatchLdarg(1),
                 x => x.MatchLdcI4(0)))
             {
-                c.EmitDelegate<Func<int, int>>(variant => (instance != null) ? instance.CurrentRightItemVariant : variant);
+                c.EmitDelegate<Func<int, int>>(GetRightHandVariant);
             }
         }
 
@@ -98,8 +132,6 @@ namespace Jotunn.Utils
         [HarmonyPatch(typeof(VisEquipment), nameof(VisEquipment.SetBackEquipped)), HarmonyILManipulator]
         private static void VisEquipment_SetBackEquiped(ILContext il)
         {
-            ExtEquipment instance = null;
-
             ILCursor c = new ILCursor(il);
 
             // Change hash if variant is different
@@ -107,16 +139,7 @@ namespace Jotunn.Utils
                 x => x.MatchLdarg(2)))
             {
                 c.Emit(OpCodes.Ldarg_0);
-                c.EmitDelegate<Func<int, VisEquipment, int>>((hash, self) =>
-                {
-                    if (Instances.TryGetValue(self, out instance) && hash != 0 &&
-                        instance.CurrentRightBackItemVariant != instance.NewRightBackItemVariant)
-                    {
-                        instance.CurrentRightBackItemVariant = instance.NewRightBackItemVariant;
-                        return hash + instance.CurrentRightBackItemVariant;
-                    }
-                    return hash;
-                });
+                c.EmitDelegate<Func<int, VisEquipment, int>>(ApplyRightBackHash);
             }
 
             // Pass current variant to AttachItem
@@ -126,7 +149,7 @@ namespace Jotunn.Utils
                 x => x.MatchLdarg(2),
                 x => x.MatchLdcI4(0)))
             {
-                c.EmitDelegate<Func<int, int>>(variant => (instance != null) ? instance.CurrentRightBackItemVariant : variant);
+                c.EmitDelegate<Func<int, int>>(GetRightBackVariant);
             }
         }
 
@@ -136,8 +159,6 @@ namespace Jotunn.Utils
         [HarmonyPatch(typeof(VisEquipment), nameof(VisEquipment.SetChestEquipped)), HarmonyILManipulator]
         private static void VisEquipment_SetChestEquiped(ILContext il)
         {
-            ExtEquipment instance = null;
-
             ILCursor c = new ILCursor(il);
 
             // Change hash if variant is different
@@ -145,16 +166,7 @@ namespace Jotunn.Utils
                 x => x.MatchLdarg(1)))
             {
                 c.Emit(OpCodes.Ldarg_0);
-                c.EmitDelegate<Func<int, VisEquipment, int>>((hash, self) =>
-                {
-                    if (Instances.TryGetValue(self, out instance) && hash != 0 &&
-                        instance.CurrentChestVariant != instance.NewChestVariant)
-                    {
-                        instance.CurrentChestVariant = instance.NewChestVariant;
-                        return hash + instance.CurrentChestVariant;
-                    }
-                    return hash;
-                });
+                c.EmitDelegate<Func<int, VisEquipment, int>>(ApplyChestHash);
             }
 
             // Pass current variant to AttachArmor
@@ -164,7 +176,7 @@ namespace Jotunn.Utils
                 x => x.MatchLdarg(1),
                 x => x.MatchLdcI4(-1)))
             {
-                c.EmitDelegate<Func<int, int>>(variant => (instance != null) ? instance.CurrentChestVariant : variant);
+                c.EmitDelegate<Func<int, int>>(GetChestVariant);
             }
         }
 

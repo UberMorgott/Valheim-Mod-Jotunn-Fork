@@ -136,9 +136,9 @@ namespace Jotunn.Managers
         ///     This guarantees the same relative path for all clients.
         /// </summary>
         /// <param name="customFile">the file to synchronize</param>
-        /// <exception cref="T:System.ArgumentException">The config file is not saved under the BepInEx config folder</exception>
-        /// <exception cref="T:System.ArgumentException">The config file is already registered</exception>
-        /// <exception cref="T:System.ArgumentException">The config file is a default mod config and is already implicitly synchronized</exception>
+        /// <exception cref="ArgumentException">The config file is not saved under the BepInEx config folder</exception>
+        /// <exception cref="ArgumentException">The config file is already registered</exception>
+        /// <exception cref="ArgumentException">The config file is a default mod config and is already implicitly synchronized</exception>
         public void RegisterCustomConfig(ConfigFile customFile)
         {
             if (!customFile.ConfigFilePath.StartsWith(BepInEx.Paths.ConfigPath))
@@ -185,9 +185,24 @@ namespace Jotunn.Managers
         /// </summary>
         /// <param name="rpc">RPC to be called</param>
         /// <param name="packageGenerator">Method generating the ZPackage payload</param>
+        private sealed class ConstantPackageGenerator
+        {
+            private readonly Func<ZPackage> generator;
+
+            public ConstantPackageGenerator(Func<ZPackage> generator)
+            {
+                this.generator = generator;
+            }
+
+            public ZPackage Generate(ZNetPeer peer)
+            {
+                return generator();
+            }
+        }
+
         public void AddInitialSynchronization(CustomRPC rpc, Func<ZPackage> packageGenerator)
         {
-            AddInitialSynchronization(rpc, peer => packageGenerator());
+            AddInitialSynchronization(rpc, new ConstantPackageGenerator(packageGenerator).Generate);
         }
 
         private static class Patches
@@ -283,6 +298,13 @@ namespace Jotunn.Managers
             ResetAdminConfigs(zNet);
         }
 
+        private static ConfigDefinition[] GetConfigDefinitions(ConfigFile config)
+        {
+            var definitions = new ConfigDefinition[config.Keys.Count];
+            config.Keys.CopyTo(definitions, 0);
+            return definitions;
+        }
+
         /// <summary>
         ///     Cache local config values for synced entries.
         /// </summary>
@@ -290,7 +312,7 @@ namespace Jotunn.Managers
         {
             foreach (var config in GetConfigFiles())
             {
-                foreach (var configDefinition in config.Keys)
+                foreach (var configDefinition in GetConfigDefinitions(config))
                 {
                     var configEntry = config[configDefinition.Section, configDefinition.Key];
                     var configAttribute = configEntry.GetConfigurationManagerAttributes();
@@ -375,7 +397,7 @@ namespace Jotunn.Managers
 
         private IEnumerator SynchronizeInitialData(ZNetPeer peer, SocketBuffer socketBuffer)
         {
-            Logger.LogInfo($"Sending initial data to peer #{peer.m_uid}");
+            Logger.LogInfo($"Sending initial data to peer #{peer.m_uid.ToString()}");
 
             // finally: an exception (generator or flush) must not leave the join buffer capturing forever
             try
@@ -500,10 +522,18 @@ namespace Jotunn.Managers
         /// <param name="admin">Admin state to send to the client</param>
         private void SendAdminStateToClient(string entry, bool admin)
         {
-            var clientId = ZNet.instance.m_peers.FirstOrDefault(x => x.m_socket.GetHostName().EndsWith(entry))?.m_uid;
+            long? clientId = null;
+            foreach (var peer in ZNet.instance.m_peers)
+            {
+                if (peer.m_socket.GetHostName().EndsWith(entry))
+                {
+                    clientId = peer.m_uid;
+                    break;
+                }
+            }
             if (clientId != null)
             {
-                Logger.LogInfo($"Sending admin status to {entry}/{clientId} ({(admin ? "is admin" : "is no admin")})");
+                Logger.LogInfo($"Sending admin status to {entry}/{clientId.Value.ToString()} ({(admin ? "is admin" : "is no admin")})");
                 var pkg = new ZPackage();
                 pkg.Write(admin);
                 AdminRPC.SendPackage(clientId.Value, pkg);
@@ -543,19 +573,22 @@ namespace Jotunn.Managers
         ///     Gets an IEnumerable of all default and custom config files that associated with plugins that have Jotunn as a dependency.
         /// </summary>
         /// <returns></returns>
-        private IEnumerable<ConfigFile> GetConfigFiles()
+        private List<ConfigFile> GetConfigFiles()
         {
             var loadedPlugins = BepInExUtils.GetDependentPlugins(true);
+            var files = new List<ConfigFile>(loadedPlugins.Count + CustomConfigs.Count);
 
             foreach (var plugin in loadedPlugins.Values)
             {
-                yield return plugin.Config;
+                files.Add(plugin.Config);
             }
 
             foreach (var customConfigFile in CustomConfigs.Values)
             {
-                yield return customConfigFile;
+                files.Add(customConfigFile);
             }
+
+            return files;
         }
 
         /// <summary>
@@ -630,12 +663,7 @@ namespace Jotunn.Managers
                 return true;
             }
 
-            if (CachedCustomConfigGUIDs.ContainsKey(configFileIdentifier))
-            {
-                pluginGUID = CachedCustomConfigGUIDs[configFileIdentifier];
-                return true;
-            }
-            return false;
+            return CachedCustomConfigGUIDs.TryGetValue(configFileIdentifier, out pluginGUID);
         }
 
         private ConfigFile GetConfigFile(string identifier)
@@ -675,7 +703,7 @@ namespace Jotunn.Managers
         {
             foreach (var config in GetConfigFiles())
             {
-                foreach (var configDefinition in config.Keys)
+                foreach (var configDefinition in GetConfigDefinitions(config))
                 {
                     var configEntry = config[configDefinition.Section, configDefinition.Key];
                     var configAttribute = configEntry.GetConfigurationManagerAttributes();
@@ -700,7 +728,7 @@ namespace Jotunn.Managers
                     continue;
                 }
 
-                foreach (var configDefinition in config.Keys)
+                foreach (var configDefinition in GetConfigDefinitions(config))
                 {
                     var configEntry = config[configDefinition.Section, configDefinition.Key];
                     var configAttribute = configEntry.GetConfigurationManagerAttributes();
@@ -717,7 +745,6 @@ namespace Jotunn.Managers
         ///     Hook <see cref="Menu.IsVisible"/> to unlock cursor properly and disable camera rotation
         /// </summary>
         /// <param name="result"></param>
-        /// <returns></returns>
         private void Menu_IsVisible(ref bool result)
         {
             result = result || ConfigurationManagerWindowShown;
@@ -829,7 +856,7 @@ namespace Jotunn.Managers
             {
                 string configIdentifier = GetFileIdentifier(config);
 
-                foreach (var cd in config.Keys)
+                foreach (var cd in GetConfigDefinitions(config))
                 {
                     ConfigEntryBase cx = config[cd.Section, cd.Key];
                     var configAttribute = cx.GetConfigurationManagerAttributes();
@@ -857,7 +884,7 @@ namespace Jotunn.Managers
             {
                 string configIdentifier = GetFileIdentifier(config);
 
-                foreach (var cd in config.Keys)
+                foreach (var cd in GetConfigDefinitions(config))
                 {
                     var cx = config[cd];
                     var configAttribute = cx.GetConfigurationManagerAttributes();
@@ -925,7 +952,7 @@ namespace Jotunn.Managers
                     continue;
                 }
 
-                foreach (var configDefinition in config.Keys)
+                foreach (var configDefinition in GetConfigDefinitions(config))
                 {
                     var configEntry = config[configDefinition.Section, configDefinition.Key];
                     var configAttribute = configEntry.GetConfigurationManagerAttributes();
@@ -957,7 +984,7 @@ namespace Jotunn.Managers
             // Is sender admin?
             if (ZNet.instance.IsAdmin(sender))
             {
-                Logger.LogInfo($"Received configuration data from client {sender}");
+                Logger.LogInfo($"Received configuration data from client {sender.ToString()}");
                 InvokeOnSyncingConfiguration();
 
                 // Apply config locally
@@ -965,7 +992,15 @@ namespace Jotunn.Managers
                 InvokeOnConfigurationSynchronized(initial, pluginGUIDs);
 
                 // Send to all other clients
-                ConfigRPC.SendPackage(ZNet.instance.m_peers.Where(x => x.m_uid != sender).ToList(), package);
+                var otherPeers = new List<ZNetPeer>();
+                foreach (var peer in ZNet.instance.m_peers)
+                {
+                    if (peer.m_uid != sender)
+                    {
+                        otherPeers.Add(peer);
+                    }
+                }
+                ConfigRPC.SendPackage(otherPeers, package);
             }
             yield break;
         }
@@ -1027,7 +1062,7 @@ namespace Jotunn.Managers
 
                 if (config != null)
                 {
-                    if (config.Keys.Contains(new ConfigDefinition(section, key)))
+                    if (config.ContainsKey(new ConfigDefinition(section, key)))
                     {
                         var entry = config[section, key];
                         if (entry.IsSyncable())

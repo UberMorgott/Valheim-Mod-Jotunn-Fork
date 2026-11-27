@@ -1,4 +1,4 @@
-﻿using Jotunn.Configs;
+using Jotunn.Configs;
 using Jotunn.Entities;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ namespace Jotunn.Managers
     ///     Manager for handling Kitbashed objects
     /// </summary>
     public class KitbashManager : IManager
-    {   
+    {
         private static KitbashManager _instance;
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace Jotunn.Managers
         /// <returns>The KitbashObject container for this prefab</returns>
         public KitbashObject AddKitbash(GameObject prefab, KitbashConfig kitbashConfig)
         {
-            if(prefab.transform.parent == null)
+            if (prefab.transform.parent == null)
             {
                 string name = prefab.name;
                 prefab = Object.Instantiate(prefab, PrefabManager.Instance.PrefabContainer.transform);
@@ -73,7 +73,7 @@ namespace Jotunn.Managers
         {
             if (KitbashObjects.Count > 0)
             {
-                Logger.LogInfo($"Applying Kitbash in {KitbashObjects.Count} objects");
+                Logger.LogInfo($"Applying Kitbash in {KitbashObjects.Count.ToString()} objects");
 
                 foreach (KitbashObject kitbashObject in KitbashObjects)
                 {
@@ -167,7 +167,7 @@ namespace Jotunn.Managers
                     Logger.LogWarning(kitbashObject.SourceMod, $"No materials found for {config.ToString()}");
                     return false;
                 }
-                   
+
                 SkinnedMeshRenderer[] targetSkinnedMeshRenderers = kitbashedObject.GetComponentsInChildren<SkinnedMeshRenderer>();
 
                 foreach (SkinnedMeshRenderer targetSkinnedMeshRenderer in targetSkinnedMeshRenderers)
@@ -192,7 +192,7 @@ namespace Jotunn.Managers
             Material[] result = new Material[config.Materials.Length];
             for (int i = 0; i < config.Materials.Length; i++)
             {
-                result[i] = (Material) PrefabManager.Cache.GetPrefab(typeof(Material), config.Materials[i]);
+                result[i] = PrefabManager.Cache.GetPrefab<Material>(config.Materials[i]);
             }
             return result;
         }

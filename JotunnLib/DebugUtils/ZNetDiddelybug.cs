@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
@@ -17,7 +17,7 @@ namespace Jotunn.DebugUtils
             instance = this;
 
             _isModEnabled = Main.Instance.Config.Bind<bool>(
-                nameof(ZNetDiddelybug), "Enabled", false, 
+                nameof(ZNetDiddelybug), "Enabled", false,
                 new ConfigDescription("Globally enable or disable the RPC debug flag in ZRpc. Needs a server restart.", null,
                     new ConfigurationManagerAttributes() { IsAdminOnly = true }));
 
@@ -26,7 +26,7 @@ namespace Jotunn.DebugUtils
                 new ConfigDescription("Enable or disable RPC debug logging. Needs the debug flag to be enabled.", null,
                     new ConfigurationManagerAttributes() { IsAdminOnly = true }));
 
-           Main.Harmony.PatchAll(typeof(Patches));
+            Main.Harmony.PatchAll(typeof(Patches));
         }
 
         private static class Patches
@@ -54,7 +54,7 @@ namespace Jotunn.DebugUtils
 
         private void ZNet_Awake(ZNet self)
         {
-            Logger.LogDebug($"ZNet awoken. IsServer: {self.IsServer()} IsDedicated: {self.IsDedicated()}");
+            Logger.LogDebug($"ZNet awoken. IsServer: {self.IsServer().ToString()} IsDedicated: {self.IsDedicated().ToString()}");
 
             if (_isModEnabled.Value)
             {
@@ -68,7 +68,7 @@ namespace Jotunn.DebugUtils
             {
                 return;
             }
-            
+
             pkg.SetPos(0);
             int methodHash = pkg.ReadInt();
             if (methodHash == 0)

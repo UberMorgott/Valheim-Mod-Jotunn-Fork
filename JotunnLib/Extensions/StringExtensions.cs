@@ -102,9 +102,9 @@ namespace Jotunn.Extensions
             if (s.Length == 0)
                 return s;
             else if (s.Length == 1)
-                return $"{char.ToUpper(s[0])}";
+                return char.ToUpperInvariant(s[0]).ToString();
             else
-                return char.ToUpper(s[0]) + s.Substring(1);
+                return char.ToUpperInvariant(s[0]) + s.Substring(1);
         }
     }
 }

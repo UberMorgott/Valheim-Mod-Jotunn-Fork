@@ -66,12 +66,12 @@ namespace Jotunn.Managers
         ///     Container to hold all live Overlays.
         /// </summary>
         private readonly Dictionary<string, MapOverlay> Overlays = new Dictionary<string, MapOverlay>();
-        
+
         /// <summary>
         ///     Container to hold all live Drawings.
         /// </summary>
         private readonly Dictionary<string, MapDrawing> Drawings = new Dictionary<string, MapDrawing>();
-        
+
         // Transparent base texture
         private Texture2D TransparentTex;
         // Mask for the Overlay
@@ -83,7 +83,7 @@ namespace Jotunn.Managers
         private Texture2D HeightFilter;
         private Texture2D ForestFilter;
         private Texture2D FogFilter;
-        
+
         // Materials that have shaders used to blit overlays onto the minimap.
         private Material ComposeOverlayMaterial;
         private Material ComposeMainMaterial;
@@ -117,7 +117,7 @@ namespace Jotunn.Managers
             var bundle = AssetUtils.LoadAssetBundleFromResources("minimapmanager", typeof(MinimapManager).Assembly);
 
             TransparentTex = bundle.LoadAsset<Texture2D>("2048x2048_clear");
-            
+
             var panelGameObject = bundle.LoadAsset<GameObject>("MinimapOverlayPanel");
             PrefabManager.Instance.AddPrefab(new CustomPrefab(panelGameObject, false));
 
@@ -125,7 +125,7 @@ namespace Jotunn.Managers
 
             // Create a harmony patch to watch Texture2D.Apply calls
             Main.Harmony.Patch(
-                AccessTools.DeclaredMethod(typeof(Texture2D), nameof(Texture2D.Apply), new[] {typeof(bool), typeof(bool)}),
+                AccessTools.DeclaredMethod(typeof(Texture2D), nameof(Texture2D.Apply), new[] { typeof(bool), typeof(bool) }),
                 new HarmonyMethod(AccessTools.DeclaredMethod(typeof(MinimapManager), nameof(Texture2D_Apply))));
         }
 
@@ -152,10 +152,10 @@ namespace Jotunn.Managers
         /// <returns>Reference to MapOverlay for modder to edit</returns>
         public MapOverlay GetMapOverlay(string name, bool ignoreFog = false)
         {
-            if (Overlays.ContainsKey(name))
+            if (Overlays.TryGetValue(name, out var existingOverlay))
             {
                 Logger.LogDebug($"Returning existing overlay with name {name}");
-                return Overlays[name];
+                return existingOverlay;
             }
 
             // if this is the first MapOverlay we are adding, then we initialize all variables.
@@ -175,7 +175,7 @@ namespace Jotunn.Managers
             AddOverlayToGUI(ret);
             return ret;
         }
-        
+
         /// <summary>
         ///     Create a new MapDrawing with a custom overlay name
         /// </summary>
@@ -183,10 +183,10 @@ namespace Jotunn.Managers
         /// <returns>Reference to MapDrawing for modder to edit</returns>
         public MapDrawing GetMapDrawing(string name)
         {
-            if (Drawings.ContainsKey(name))
+            if (Drawings.TryGetValue(name, out var existingDrawing))
             {
                 Logger.LogDebug($"Returning existing overlay with name {name}");
-                return Drawings[name];
+                return existingDrawing;
             }
 
             // if this is the first MapDrawing we are adding, then we initialize all variables.
@@ -205,7 +205,7 @@ namespace Jotunn.Managers
             AddDrawingToGUI(ret);
             return ret;
         }
-        
+
         /// <summary>
         ///     Causes MapManager to stop updating the MapOverlay object and removes this Manager's reference to that overlay.
         /// </summary>
@@ -225,7 +225,7 @@ namespace Jotunn.Managers
         {
             return Drawings.Remove(name);
         }
-        
+
         /// <summary>
         ///     Return a list of all current overlay names
         /// </summary>
@@ -323,7 +323,7 @@ namespace Jotunn.Managers
                 while (true)
                 {
                     yield return wait;
-                    
+
                     if (!Overlays.Values.Any(x => x.Dirty) && !Drawings.Values.Any(x => x.Dirty))
                     {
                         continue;
@@ -345,7 +345,7 @@ namespace Jotunn.Managers
                     {
                         yield return DrawOverlay();
                     }
-                    
+
                     // Map textures
                     if (Drawings.Values.Any(x => x.MainDirty))
                     {
@@ -363,7 +363,7 @@ namespace Jotunn.Managers
             }
             Minimap.instance.StartCoroutine(watchdog());
         }
-        
+
         private IEnumerator DrawFogFilter()
         {
             Logger.LogDebug("Redraw Fog");
@@ -378,9 +378,9 @@ namespace Jotunn.Managers
                 }
                 overlay.FogDirty = false;
             }
-            
+
             watch.Stop();
-            Logger.LogDebug($"DrawFog loop took {watch.ElapsedMilliseconds}ms time");
+            Logger.LogDebug($"DrawFog loop took {watch.ElapsedMilliseconds.ToString()}ms time");
 
             yield return null;
         }
@@ -390,9 +390,10 @@ namespace Jotunn.Managers
             Logger.LogDebug("Redraw Overlay");
             var watch = new System.Diagnostics.Stopwatch();
             watch.Start();
-            
+
             Graphics.CopyTexture(TransparentTex, OverlayTex);
-            foreach (var overlay in Overlays.Values.OrderBy(x => x.IgnoreFog ? 1 : 0))
+            var orderedOverlays = Overlays.Values.OrderBy(x => x.IgnoreFog ? 1 : 0).ToList();
+            foreach (var overlay in orderedOverlays)
             {
                 if (overlay.Enabled)
                 {
@@ -403,7 +404,7 @@ namespace Jotunn.Managers
             }
 
             watch.Stop();
-            Logger.LogDebug($"DrawOverlay loop took {watch.ElapsedMilliseconds}ms time");
+            Logger.LogDebug($"DrawOverlay loop took {watch.ElapsedMilliseconds.ToString()}ms time");
 
             yield return null;
         }
@@ -425,7 +426,7 @@ namespace Jotunn.Managers
             }
 
             watch.Stop();
-            Logger.LogDebug($"DrawMain loop took {watch.ElapsedMilliseconds}ms time");
+            Logger.LogDebug($"DrawMain loop took {watch.ElapsedMilliseconds.ToString()}ms time");
 
             yield return null;
         }
@@ -448,7 +449,7 @@ namespace Jotunn.Managers
             }
 
             watch.Stop();
-            Logger.LogDebug($"DrawHeight loop took {watch.ElapsedMilliseconds}ms time");
+            Logger.LogDebug($"DrawHeight loop took {watch.ElapsedMilliseconds.ToString()}ms time");
 
             yield return null;
         }
@@ -470,11 +471,11 @@ namespace Jotunn.Managers
             }
 
             watch.Stop();
-            Logger.LogDebug($"DrawForest loop took {watch.ElapsedMilliseconds}ms time");
+            Logger.LogDebug($"DrawForest loop took {watch.ElapsedMilliseconds.ToString()}ms time");
 
             yield return null;
         }
-        
+
         private void DrawLayer(Texture2D layer, Texture2D dest, Material mat, RenderTextureFormat format = RenderTextureFormat.Default)
         {
             RenderTexture tmp = RenderTexture.GetTemporary(TextureSize, TextureSize, 0, format, RenderTextureReadWrite.Default);
@@ -565,9 +566,9 @@ namespace Jotunn.Managers
             Minimap.instance.m_mapSmallShader.SetTexture("_MaskTex", ForestFilter);
             Minimap.instance.m_mapLargeShader.SetTexture("_FogTex", FogFilter);
             Minimap.instance.m_mapSmallShader.SetTexture("_FogTex", FogFilter);
-            
+
             watch.Stop();
-            Logger.LogDebug($"Setup took {watch.ElapsedMilliseconds}ms time");
+            Logger.LogDebug($"Setup took {watch.ElapsedMilliseconds.ToString()}ms time");
         }
 
         private void SetupOverlays()
@@ -642,7 +643,7 @@ namespace Jotunn.Managers
             imageSmall.raycastTarget = false;
 
             watch.Stop();
-            Logger.LogDebug($"Setup took {watch.ElapsedMilliseconds}ms time");
+            Logger.LogDebug($"Setup took {watch.ElapsedMilliseconds.ToString()}ms time");
         }
 
         private void SetupGUI()
@@ -656,14 +657,41 @@ namespace Jotunn.Managers
             GUIManager.Instance.ApplyTextStyle(OverlayPanel.BaseModText);
         }
 
+        private sealed class OverlayToggleHandler
+        {
+            private readonly MapOverlay ovl;
+
+            public OverlayToggleHandler(MapOverlay ovl)
+            {
+                this.ovl = ovl;
+            }
+
+            public void OnChanged(bool active)
+            {
+                ovl.Enabled = active;
+            }
+        }
+
+        private sealed class DrawingToggleHandler
+        {
+            private readonly MapDrawing ovl;
+
+            public DrawingToggleHandler(MapDrawing ovl)
+            {
+                this.ovl = ovl;
+            }
+
+            public void OnChanged(bool active)
+            {
+                ovl.Enabled = active;
+            }
+        }
+
         private void AddOverlayToGUI(MapOverlay ovl)
         {
             var toggle = OverlayPanel?.AddOverlayToggle(ovl.SourceMod.Name, ovl.Name);
             toggle?.SetIsOnWithoutNotify(ovl.Enabled);
-            toggle?.onValueChanged.AddListener(active =>
-            {
-                ovl.Enabled = active;
-            });
+            toggle?.onValueChanged.AddListener(new OverlayToggleHandler(ovl).OnChanged);
             ovl.Toggle = toggle;
             OverlayPanel?.gameObject.SetActive(true);
         }
@@ -672,10 +700,7 @@ namespace Jotunn.Managers
         {
             var toggle = OverlayPanel?.AddOverlayToggle(ovl.SourceMod.Name, ovl.Name);
             toggle?.SetIsOnWithoutNotify(ovl.Enabled);
-            toggle?.onValueChanged.AddListener(active =>
-            {
-                ovl.Enabled = active;
-            });
+            toggle?.onValueChanged.AddListener(new DrawingToggleHandler(ovl).OnChanged);
             ovl.Toggle = toggle;
             OverlayPanel?.gameObject.SetActive(true);
         }
@@ -731,7 +756,7 @@ namespace Jotunn.Managers
             }
             Instance.Drawings.Clear();
         }
-        
+
         [HarmonyPatch(typeof(Texture2D), "Apply", typeof(bool), typeof(bool))]
         [HarmonyPostfix]
         private static void Texture2D_Apply(Texture2D __instance)
@@ -754,13 +779,19 @@ namespace Jotunn.Managers
 
         private void SetFogDirty()
         {
-            foreach (var overlay in Overlays.Values.Where(x => !x.IgnoreFog))
+            foreach (var overlay in Overlays.Values)
             {
-                overlay.Dirty = true;
+                if (!overlay.IgnoreFog)
+                {
+                    overlay.Dirty = true;
+                }
             }
-            foreach (var drawing in Drawings.Values.Where(x => x.FogEnabled))
+            foreach (var drawing in Drawings.Values)
             {
-                drawing.FogDirty = true;
+                if (drawing.FogEnabled)
+                {
+                    drawing.FogDirty = true;
+                }
             }
         }
 
@@ -800,7 +831,7 @@ namespace Jotunn.Managers
                     }
                 }
             }
-            
+
             /// <summary>
             ///     Flag to determine if this overlay had changes since its last draw
             /// </summary>
@@ -815,7 +846,7 @@ namespace Jotunn.Managers
                     _overlayDirty = value;
                 }
             }
-            
+
             /// <summary>
             ///     Flag to determine if this overlay should be hidden in unexplored areas
             /// </summary>
@@ -825,11 +856,11 @@ namespace Jotunn.Managers
             private Texture2D _overlayTex;
             private bool _enabled;
             private bool _overlayDirty;
-            
+
             /// <summary>
             ///     Hide .ctor
             /// </summary>
-            internal MapOverlay() {}
+            internal MapOverlay() { }
 
             /// <summary>
             ///     Function called on Texture2D.Apply to check if one of our member textures was changed
@@ -890,7 +921,7 @@ namespace Jotunn.Managers
             ///     Texture to draw fog filter information to
             /// </summary>
             public Texture2D FogFilter => _fogFilter ??= Create(Minimap.instance.m_fogTexture);
-            
+
             /// <summary>
             ///     Set true to render this overlay, false to hide
             /// </summary>
@@ -963,7 +994,7 @@ namespace Jotunn.Managers
                     _heightDirty = value;
                 }
             }
-            internal bool ForestDirty 
+            internal bool ForestDirty
             {
                 get
                 {
@@ -997,7 +1028,7 @@ namespace Jotunn.Managers
             private bool _heightDirty;
             private bool _forestDirty;
             private bool _fogDirty;
-            
+
             /// <summary>
             ///     Hide .ctor
             /// </summary>
@@ -1080,7 +1111,7 @@ namespace Jotunn.Managers
             ///     Reference to the GUI toggle element to notify changes on the overlay state
             /// </summary>
             internal Toggle Toggle;
-            
+
             /// <summary>
             ///     Hide .ctor
             /// </summary>

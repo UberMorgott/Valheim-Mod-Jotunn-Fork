@@ -210,13 +210,13 @@ namespace Jotunn.Managers
             private static void ZInput_GetButtonUp(string name, ref bool __result) => __result = Instance.ZInput_GetButtonUp(name);
 
             [HarmonyPatch(typeof(ZInput), nameof(ZInput.GetButtonDown)), HarmonyReversePatch]
-            public static bool ZInput_GetButtonDown_Original(string name) => throw new NotImplementedException("It's a stub");
+            public static bool ZInput_GetButtonDown_Original(string name) => throw new NotSupportedException("It's a stub");
 
             [HarmonyPatch(typeof(ZInput), nameof(ZInput.GetButton)), HarmonyReversePatch]
-            public static bool ZInput_GetButton_Original(string name) => throw new NotImplementedException("It's a stub");
+            public static bool ZInput_GetButton_Original(string name) => throw new NotSupportedException("It's a stub");
 
             [HarmonyPatch(typeof(ZInput), nameof(ZInput.GetButtonUp)), HarmonyReversePatch]
-            public static bool ZInput_GetButtonUp_Original(string name) => throw new NotImplementedException("It's a stub");
+            public static bool ZInput_GetButtonUp_Original(string name) => throw new NotSupportedException("It's a stub");
         }
 
         /// <summary>
@@ -288,9 +288,9 @@ namespace Jotunn.Managers
 
         private void RegisterCustomInputs(ZInput self)
         {
-            if (Buttons.Any())
+            if (Buttons.Count > 0)
             {
-                Logger.LogInfo($"Registering {Buttons.Count} custom inputs");
+                Logger.LogInfo($"Registering {Buttons.Count.ToString()} custom inputs");
 
                 foreach (var pair in Buttons)
                 {
@@ -406,8 +406,12 @@ namespace Jotunn.Managers
 
             if (button.BlockOtherInputs && ZInput.instance.m_buttons.TryGetValue(button.Name, out var def))
             {
-                foreach (var btn in ZInput.instance.m_buttons.Where(pair => IsSameButton(def, pair.Value)))
+                foreach (var btn in ZInput.instance.m_buttons)
                 {
+                    if (!IsSameButton(def, btn.Value))
+                    {
+                        continue;
+                    }
                     ZInput.ResetButtonStatus(btn.Key);
                     btn.Value.m_pressedDynamic = false;
                     btn.Value.m_pressedFixed = false;

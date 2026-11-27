@@ -92,7 +92,7 @@ namespace Jotunn.Utils
             if (!this.IsSupportedDataLayout())
             {
                 // Data from a newer version of Jotunn has been received and cannot be read.
-                throw new NotSupportedException($"{DataLayoutVersion} is not a supported data layout version.");
+                throw new NotSupportedException($"{DataLayoutVersion.ToString()} is not a supported data layout version.");
             }
 
             if (DataLayoutVersion == 1)
@@ -160,11 +160,11 @@ namespace Jotunn.Utils
         {
             if (Version.Build >= 0)
             {
-                return $"{Version.Major}.{Version.Minor}.{Version.Build}";
+                return $"{Version.Major.ToString()}.{Version.Minor.ToString()}.{Version.Build.ToString()}";
             }
             else
             {
-                return $"{Version.Major}.{Version.Minor}";
+                return $"{Version.Major.ToString()}.{Version.Minor.ToString()}";
             }
         }
 

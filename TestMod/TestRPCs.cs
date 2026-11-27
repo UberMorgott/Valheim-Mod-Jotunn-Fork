@@ -1,4 +1,5 @@
-﻿using System.Collections;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BepInEx;
@@ -45,7 +46,7 @@ namespace TestMod
 
             public override void Run(string[] args)
             {
-                if (args.Length != 1 || !Sizes.Any(x => x.Equals(int.Parse(args[0]))))
+                if (args.Length != 1 || Array.IndexOf(Sizes, int.Parse(args[0])) < 0)
                 {
                     Console.instance.Print($"Usage: rpc.blocking [{string.Join("|", Sizes)}]");
                     return;
@@ -118,7 +119,7 @@ namespace TestMod
 
             public override void Run(string[] args)
             {
-                if (args.Length != 1 || !Sizes.Any(x => x.Equals(int.Parse(args[0]))))
+                if (args.Length != 1 || Array.IndexOf(Sizes, int.Parse(args[0])) < 0)
                 {
                     Console.instance.Print($"Usage: rpc.nonblocking [{string.Join("|", Sizes)}]");
                     return;

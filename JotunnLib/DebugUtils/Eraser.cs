@@ -1,7 +1,8 @@
-﻿using BepInEx.Configuration;
+using BepInEx.Configuration;
 using HarmonyLib;
 using Jotunn.Configs;
 using Jotunn.Managers;
+using Jotunn.Utils;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -63,8 +64,8 @@ namespace Jotunn.DebugUtils
                 new TwoColumnPanel(hud.m_crosshair.transform, hud.m_hoverName.font.sourceFontFile)
                     .SetPosition(new Vector2(0, 50))
                     .AddPanelRow(out _eraserLabel, out _eraserValue);
-            
-            _eraserLabel.text = $"[<color=#f44336>{_deleteObjectConfig.Value}</color>]";
+
+            _eraserLabel.text = $"[<color=#f44336>{EnumNameCache.GetName(_deleteObjectConfig.Value, (int)_deleteObjectConfig.Value)}</color>]";
             _eraserValue.text = $"[Delete this object <color=#f44336>permanently</color>]";
         }
 
@@ -140,7 +141,7 @@ namespace Jotunn.DebugUtils
                 player.m_hovering.transform.position,
                 player.m_hovering.transform.rotation);
 
-            Logger.LogInfo(string.Format("Deleted {0} (uid: {1})", player.m_hovering.name, zNetView.GetZDO().m_uid));
+            Logger.LogInfo($"Deleted {player.m_hovering.name} (uid: {zNetView.GetZDO().m_uid.ToString()})");
 
             zNetView.GetZDO().SetOwner(ZDOMan.GetSessionID());
             ZNetScene.instance.Destroy(zNetView.gameObject);

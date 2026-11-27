@@ -109,6 +109,21 @@ namespace Jotunn.Managers
         /// </summary>
         /// <param name="hintConfig">The custom key hint config to add.</param>
         /// <returns>true if the custom key hint config was added to the manager.</returns>
+        private sealed class KeyHintDirtyHandler
+        {
+            private readonly KeyHintConfig hintConfig;
+
+            public KeyHintDirtyHandler(KeyHintConfig hintConfig)
+            {
+                this.hintConfig = hintConfig;
+            }
+
+            public void MarkDirty(object sender, EventArgs args)
+            {
+                hintConfig.Dirty = true;
+            }
+        }
+
         public bool AddKeyHint(KeyHintConfig hintConfig)
         {
             if (hintConfig.Item == null)
@@ -123,21 +138,32 @@ namespace Jotunn.Managers
             }
 
             // Register events for every ConfigEntry backed ButtonConfig to mark the KeyHint dirty
-            foreach (var buttonConfig in hintConfig.ButtonConfigs.Where(x => x.IsConfigBacked))
+            KeyHintDirtyHandler dirtyHandler = null;
+            foreach (var buttonConfig in hintConfig.ButtonConfigs)
             {
+                if (!buttonConfig.IsConfigBacked)
+                {
+                    continue;
+                }
+
+                if (dirtyHandler == null)
+                {
+                    dirtyHandler = new KeyHintDirtyHandler(hintConfig);
+                }
+
                 if (buttonConfig.Config != null)
                 {
-                    buttonConfig.Config.SettingChanged += (sender, args) => hintConfig.Dirty = true;
+                    buttonConfig.Config.SettingChanged += dirtyHandler.MarkDirty;
                 }
 
                 if (buttonConfig.ShortcutConfig != null)
                 {
-                    buttonConfig.ShortcutConfig.SettingChanged += (sender, args) => hintConfig.Dirty = true;
+                    buttonConfig.ShortcutConfig.SettingChanged += dirtyHandler.MarkDirty;
                 }
 
                 if (buttonConfig.GamepadConfig != null)
                 {
-                    buttonConfig.GamepadConfig.SettingChanged += (sender, args) => hintConfig.Dirty = true;
+                    buttonConfig.GamepadConfig.SettingChanged += dirtyHandler.MarkDirty;
                 }
             }
 
@@ -299,7 +325,7 @@ namespace Jotunn.Managers
                 }
                 string hint = buttonConfig.Hint ?? LocalizationManager.Instance.TryTranslate(buttonConfig.HintToken);
 
-                if (string.IsNullOrEmpty(buttonConfig.Axis) || !buttonConfig.Axis.Equals("Mouse ScrollWheel"))
+                if (string.IsNullOrEmpty(buttonConfig.Axis) || !buttonConfig.Axis.Equals("Mouse ScrollWheel", StringComparison.Ordinal))
                 {
                     var customKeyboard = Object.Instantiate(BaseKey, kb, false);
                     customKeyboard.name = buttonConfig.Name;
@@ -317,7 +343,7 @@ namespace Jotunn.Managers
                 var gamepadButton = buttonConfig.GamepadButton;
                 if (gamepadButton == GamepadButton.None && ZInput.instance.m_buttons.TryGetValue($"Joy{buttonConfig.Name}", out var buttonDef))
                 {
-                    // TODO extract GamepadButton from buttonDef path
+                    // Note: GamepadButton extraction from buttonDef path is not yet implemented
                     gamepadButton = GamepadButton.None;
                 }
 
@@ -325,7 +351,7 @@ namespace Jotunn.Managers
                 {
                     string buttonString = GetGamepadString(gamepadButton);
 
-                    // TODO fix GamepadButton keyhints
+                    // Note: GamepadButton keyhint labels are currently unpopulated
                     switch (gamepadButton)
                     {
                         case GamepadButton.DPadLeft:
@@ -395,7 +421,7 @@ namespace Jotunn.Managers
                             customStick.SetActive(true);
                             break;
                         default:
-                            throw new ArgumentOutOfRangeException(nameof(gamepadButton), gamepadButton, null);
+                            throw new ArgumentOutOfRangeException(nameof(config), $"Unsupported GamepadButton '{EnumNameCache.GetName(gamepadButton, (int)gamepadButton)}'");
                     }
 
                 }
@@ -404,6 +430,105 @@ namespace Jotunn.Managers
             KeyHintObjects[config.ToString()] = baseKeyHint;
             config.Dirty = false;
             return baseKeyHint;
+        }
+
+        private void DeactivateKeyHintObjects()
+        {
+            foreach (var obj in KeyHintObjects.Values)
+            {
+                if (obj.activeSelf)
+                {
+                    obj.SetActive(false);
+                }
+            }
+        }
+
+        private bool UseCustomKeyHint(KeyHints self)
+        {
+            // Guard
+            if (!self.m_keyHintsEnabled || !Player.m_localPlayer || Player.m_localPlayer.IsDead() ||
+                Chat.instance.IsChatDialogWindowVisible() || Game.IsPaused() || InventoryGui.instance != null &&
+                (InventoryGui.instance.IsSkillsPanelOpen || InventoryGui.instance.IsTrophisPanelOpen ||
+                    InventoryGui.instance.IsTextPanelOpen || InventoryGui.instance.m_animator.GetBool("visible")))
+            {
+                return false;
+            }
+
+            // Get the current equipped item name
+            ItemDrop.ItemData item = null;
+            if (Player.m_localPlayer.m_rightItem != null)
+            {
+                item = Player.m_localPlayer.m_rightItem;
+            }
+            else if (Player.m_localPlayer.m_leftItem != null && Player.m_localPlayer.m_leftItem.m_shared.m_itemType != ItemDrop.ItemData.ItemType.Torch)
+            {
+                item = Player.m_localPlayer.m_leftItem;
+            }
+            else if (Player.m_localPlayer.m_unarmedWeapon)
+            {
+                item = Player.m_localPlayer.m_unarmedWeapon.m_itemData;
+            }
+            if (!(item != null && (item.IsWeapon() || item.m_shared?.m_buildPieces != null)))
+            {
+                return false;
+            }
+            string prefabName = item.m_dropPrefab?.name;
+            if (string.IsNullOrEmpty(prefabName))
+            {
+                return false;
+            }
+
+            // Get the current selected piece name if any
+            string pieceName = Player.m_localPlayer.m_buildPieces?.GetSelectedPiece()?.name;
+
+            // Try to get a KeyHint for the item and piece selected or just the item without a piece
+            KeyHintConfig hintConfig = null;
+            if (!string.IsNullOrEmpty(pieceName))
+            {
+                KeyHints.TryGetValue($"{prefabName}:{pieceName}", out hintConfig);
+            }
+            if (hintConfig == null)
+            {
+                KeyHints.TryGetValue(prefabName, out hintConfig);
+            }
+            if (hintConfig == null)
+            {
+                return false;
+            }
+
+            // Try to get the hint object, if the keyhint is "dirty" (i.e. some config backed button changed), destroy the hint object
+            if (KeyHintObjects.TryGetValue(hintConfig.ToString(), out var hintObject) && hintConfig.Dirty)
+            {
+                Object.DestroyImmediate(hintObject);
+            }
+
+            // Display the KeyHint instead the vanilla one or remove the config if it fails
+            if (!hintObject)
+            {
+                try
+                {
+                    hintObject = CreateKeyHintObject(hintConfig);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning($"Exception caught while creating KeyHint {hintConfig}: {ex}");
+                    KeyHints.Remove(hintConfig.ToString());
+                    return false;
+                }
+            }
+
+            if (!hintObject.activeSelf)
+            {
+                self.m_buildHints.SetActive(false);
+                self.m_combatHints.SetActive(false);
+                self.m_inventoryHints.SetActive(false);
+                self.m_inventoryWithContainerHints.SetActive(false);
+                self.m_fishingHints.SetActive(false);
+                DeactivateKeyHintObjects();
+                hintObject.SetActive(true);
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -417,97 +542,9 @@ namespace Jotunn.Managers
                 return true;
             }
 
-            bool UseCustomKeyHint()
+            if (!UseCustomKeyHint(self))
             {
-                // Guard
-                if (!self.m_keyHintsEnabled || !Player.m_localPlayer || Player.m_localPlayer.IsDead() ||
-                    Chat.instance.IsChatDialogWindowVisible() || Game.IsPaused() || InventoryGui.instance != null &&
-                    (InventoryGui.instance.IsSkillsPanelOpen || InventoryGui.instance.IsTrophisPanelOpen ||
-                        InventoryGui.instance.IsTextPanelOpen || InventoryGui.instance.m_animator.GetBool("visible")))
-                {
-                    return false;
-                }
-
-                // Get the current equipped item name
-                ItemDrop.ItemData item = null;
-                if (Player.m_localPlayer.m_rightItem != null)
-                {
-                    item = Player.m_localPlayer.m_rightItem;
-                }
-                else if (Player.m_localPlayer.m_leftItem != null && Player.m_localPlayer.m_leftItem.m_shared.m_itemType != ItemDrop.ItemData.ItemType.Torch)
-                {
-                    item = Player.m_localPlayer.m_leftItem;
-                }
-                else if (Player.m_localPlayer.m_unarmedWeapon)
-                {
-                    item = Player.m_localPlayer.m_unarmedWeapon.m_itemData;
-                }
-                if (!(item != null && (item.IsWeapon() || item.m_shared?.m_buildPieces != null)))
-                {
-                    return false;
-                }
-                string prefabName = item.m_dropPrefab?.name;
-                if (string.IsNullOrEmpty(prefabName))
-                {
-                    return false;
-                }
-
-                // Get the current selected piece name if any
-                string pieceName = Player.m_localPlayer.m_buildPieces?.GetSelectedPiece()?.name;
-
-                // Try to get a KeyHint for the item and piece selected or just the item without a piece
-                KeyHintConfig hintConfig = null;
-                if (!string.IsNullOrEmpty(pieceName))
-                {
-                    KeyHints.TryGetValue($"{prefabName}:{pieceName}", out hintConfig);
-                }
-                if (hintConfig == null)
-                {
-                    KeyHints.TryGetValue(prefabName, out hintConfig);
-                }
-                if (hintConfig == null)
-                {
-                    return false;
-                }
-
-                // Try to get the hint object, if the keyhint is "dirty" (i.e. some config backed button changed), destroy the hint object
-                if (KeyHintObjects.TryGetValue(hintConfig.ToString(), out var hintObject) && hintConfig.Dirty)
-                {
-                    Object.DestroyImmediate(hintObject);
-                }
-
-                // Display the KeyHint instead the vanilla one or remove the config if it fails
-                if (!hintObject)
-                {
-                    try
-                    {
-                        hintObject = CreateKeyHintObject(hintConfig);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogWarning($"Exception caught while creating KeyHint {hintConfig}: {ex}");
-                        KeyHints.Remove(hintConfig.ToString());
-                        return false;
-                    }
-                }
-
-                if (!hintObject.activeSelf)
-                {
-                    self.m_buildHints.SetActive(false);
-                    self.m_combatHints.SetActive(false);
-                    self.m_inventoryHints.SetActive(false);
-                    self.m_inventoryWithContainerHints.SetActive(false);
-                    self.m_fishingHints.SetActive(false);
-                    KeyHintObjects.Values.Where(x => x.activeSelf).Do(x => x.SetActive(false));
-                    hintObject.SetActive(true);
-                }
-
-                return true;
-            }
-
-            if (!UseCustomKeyHint())
-            {
-                KeyHintObjects.Values.Where(x => x.activeSelf).Do(x => x.SetActive(false));
+                DeactivateKeyHintObjects();
                 return true;
             }
 
@@ -519,9 +556,16 @@ namespace Jotunn.Managers
         /// </summary>
         private void ZInput_Save(ZInput self)
         {
-            foreach (var config in KeyHints.Values.Where(x => x.ButtonConfigs.Any(y => !y.IsConfigBacked)))
+            foreach (var config in KeyHints.Values)
             {
-                config.Dirty = true;
+                foreach (var buttonConfig in config.ButtonConfigs)
+                {
+                    if (!buttonConfig.IsConfigBacked)
+                    {
+                        config.Dirty = true;
+                        break;
+                    }
+                }
             }
         }
     }

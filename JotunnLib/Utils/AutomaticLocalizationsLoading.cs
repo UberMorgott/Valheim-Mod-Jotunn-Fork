@@ -18,30 +18,11 @@ namespace Jotunn.Utils
             var yamlFormat = new HashSet<FileInfo>();
 
             // Json format community files
-            foreach (var fileInfo in GetTranslationFiles(Paths.LanguageTranslationsFolder, CommunityTranslationFileName))
-            {
-                jsonFormat.Add(fileInfo);
-            }
-
-            foreach (var fileInfo in GetTranslationFiles(Paths.LanguageTranslationsFolder, "*.json"))
-            {
-                jsonFormat.Add(fileInfo);
-            }
-
-            foreach (var fileInfo in GetTranslationFiles(Paths.LanguageTranslationsFolder, "*.language"))
-            {
-                unityFormat.Add(fileInfo);
-            }
-
-            foreach (var fileInfo in GetTranslationFiles(Paths.LanguageTranslationsFolder, "*.yaml"))
-            {
-                yamlFormat.Add(fileInfo);
-            }
-
-            foreach (var fileInfo in GetTranslationFiles(Paths.LanguageTranslationsFolder, "*.yml"))
-            {
-                yamlFormat.Add(fileInfo);
-            }
+            AddTranslationFiles(jsonFormat, Paths.LanguageTranslationsFolder, CommunityTranslationFileName);
+            AddTranslationFiles(jsonFormat, Paths.LanguageTranslationsFolder, "*.json");
+            AddTranslationFiles(unityFormat, Paths.LanguageTranslationsFolder, "*.language");
+            AddTranslationFiles(yamlFormat, Paths.LanguageTranslationsFolder, "*.yaml");
+            AddTranslationFiles(yamlFormat, Paths.LanguageTranslationsFolder, "*.yml");
 
             foreach (var fileInfo in jsonFormat)
             {
@@ -71,7 +52,7 @@ namespace Jotunn.Utils
 
             if (yamlFormat.Count > 0 && !Entities.CustomLocalization.IsYamlDotNetAvailable())
             {
-                Logger.LogWarning($"Found {yamlFormat.Count} YAML localization file(s) but YamlDotNet is not loaded. " +
+                Logger.LogWarning($"Found {yamlFormat.Count.ToString()} YAML localization file(s) but YamlDotNet is not loaded. " +
                     "Mods using .yaml/.yml localization must include YamlDotNet.dll as a dependency.");
             }
             else
@@ -91,23 +72,22 @@ namespace Jotunn.Utils
             }
         }
 
-        private static IEnumerable<FileInfo> GetTranslationFiles(string path, string searchPattern)
+        private static void AddTranslationFiles(HashSet<FileInfo> target, string path, string searchPattern)
         {
-            return GetTranslationFiles(new DirectoryInfo(path), searchPattern);
-        }
-
-        private static IEnumerable<FileInfo> GetTranslationFiles(DirectoryInfo pathDirectoryInfo, string searchPattern)
-        {
+            var pathDirectoryInfo = new DirectoryInfo(path);
             if (!pathDirectoryInfo.Exists)
             {
-                yield break;
+                return;
             }
 
             var files = Directory.GetFiles(pathDirectoryInfo.FullName, searchPattern, SearchOption.AllDirectories);
 
-            foreach (var path in files.Where(path => new DirectoryInfo(path).Parent?.Parent?.Name == TranslationsFolderName))
+            foreach (var filePath in files)
             {
-                yield return new FileInfo(path);
+                if (new DirectoryInfo(filePath).Parent?.Parent?.Name == TranslationsFolderName)
+                {
+                    target.Add(new FileInfo(filePath));
+                }
             }
         }
     }

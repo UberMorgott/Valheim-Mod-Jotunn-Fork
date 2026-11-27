@@ -1,4 +1,4 @@
-﻿using BepInEx.Configuration;
+using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
@@ -154,31 +154,17 @@ namespace Jotunn.DebugUtils
             float healthPercent = Mathf.Clamp01(health / wearNTear.m_health);
 
             _pieceHealthTextValue.text =
-                string.Format(
-                    "<color={0}>{1:N0}</color> /<color={2}>{3}</color> (<color=#{4}>{5:P0}</color>)",
-                    "#9CCC65",
-                    health,
-                    "#FAFAFA",
-                    wearNTear.m_health,
-                    ColorUtility.ToHtmlStringRGB(_percentGradient.Evaluate(healthPercent)),
-                    healthPercent);
+                $"<color=#9CCC65>{health.ToString("N0")}</color> /<color=#FAFAFA>{wearNTear.m_health.ToString()}</color> (<color=#{ColorUtility.ToHtmlStringRGB(_percentGradient.Evaluate(healthPercent))}>{healthPercent.ToString("P0")}</color>)";
 
             float support = wearNTear.GetSupport();
             float maxSupport = wearNTear.GetMaxSupport();
-            float supportPrecent = Mathf.Clamp01(support / maxSupport);
+            float supportPercent = Mathf.Clamp01(support / maxSupport);
 
             _pieceStabilityTextValue.text =
-                string.Format(
-                  "<color={0}>{1:N0}</color> /<color={2}>{3}</color> (<color=#{4}>{5:P0}</color>)",
-                  "#4FC3F7",
-                  support,
-                  "#FAFAFA",
-                  maxSupport,
-                  ColorUtility.ToHtmlStringRGB(_percentGradient.Evaluate(supportPrecent)),
-                  supportPrecent);
-            
-            _pieceEulerTextValue.text = $"{wearNTear.transform.rotation.eulerAngles}";
-            _pieceRotationTextValue.text = $"{wearNTear.transform.rotation}";
+                $"<color=#4FC3F7>{support.ToString("N0")}</color> /<color=#FAFAFA>{maxSupport.ToString()}</color> (<color=#{ColorUtility.ToHtmlStringRGB(_percentGradient.Evaluate(supportPercent))}>{supportPercent.ToString("P0")}</color>)";
+
+            _pieceEulerTextValue.text = wearNTear.transform.rotation.eulerAngles.ToString();
+            _pieceRotationTextValue.text = wearNTear.transform.rotation.ToString();
         }
 
         private void UpdatePlacementGhostProperties(GameObject placementGhost)
@@ -192,8 +178,8 @@ namespace Jotunn.DebugUtils
             _placementGhostPanel.SetActive(true);
 
             _ghostNameTextValue.text = $"<color=#FFCA28>{Localization.instance.Localize(piece.m_name)}</color>";
-            _ghostEulerTextValue.text = $"{placementGhost.transform.rotation.eulerAngles}";
-            _ghostRotationTextValue.text = $"{placementGhost.transform.rotation}";
+            _ghostEulerTextValue.text = placementGhost.transform.rotation.eulerAngles.ToString();
+            _ghostRotationTextValue.text = placementGhost.transform.rotation.ToString();
         }
 
         private static Gradient CreatePercentGradient()

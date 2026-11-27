@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.SceneManagement;
 
@@ -32,7 +32,7 @@ namespace JotunnDoc.Docs
 
             foreach (var languageKey in Localization.instance.m_languages)
             {
-                var localizedName = Localization.instance.Localize("$language_" + languageKey.ToLower());
+                var localizedName = Localization.instance.Localize("$language_" + languageKey.ToLowerInvariant());
                 var translationsLink = $"[Translations](translations/{languageKey}.md)";
                 AddTableRow(languageKey, localizedName, translationsLink);
                 subDocs.Add(new TranslationListDoc(languageKey));
@@ -63,8 +63,8 @@ namespace JotunnDoc.Docs
                 var keys = new List<string>(Localization.instance.m_translations.Keys);
                 keys.Sort();
 
-                var keysAM = keys.Where(key => key.Length >= 1 && key.ToLower()[0] < 'm');
-                var keysMZ = keys.Where(key => key.Length >= 1 && key.ToLower()[0] >= 'm');
+                var keysAM = keys.Where(key => key.Length >= 1 && char.ToLowerInvariant(key[0]) < 'm').ToList();
+                var keysMZ = keys.Where(key => key.Length >= 1 && char.ToLowerInvariant(key[0]) >= 'm').ToList();
 
                 AddTableHeader("Key A-M", $"{languageKey} Text");
 

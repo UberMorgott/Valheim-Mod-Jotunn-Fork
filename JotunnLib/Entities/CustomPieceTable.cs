@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Jotunn.Configs;
@@ -59,7 +59,7 @@ namespace Jotunn.Entities
                 List<string> categories = new List<string>();
                 for (int i = 0; i < (int)PieceUtils.VanillaMaxPieceCategory; i++)
                 {
-                    categories.Add(Enum.GetName(typeof(Piece.PieceCategory), i));
+                    categories.Add(EnumNameCache.GetNameOrNull((Piece.PieceCategory)i));
                 }
 
 #pragma warning disable CS0618 // Type or member is obsolete

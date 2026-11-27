@@ -80,9 +80,9 @@ namespace Jotunn
             BepInPlugin sourceMod = ModQuery.GetPrefab(prefabName)?.SourceMod;
             int maximumPrinted = Math.Min(5, MockResolveFailures.Count);
             string prefabNameMessage = string.IsNullOrEmpty(prefabName) ? "" : $"for '{prefabName}'";
-            string truncatedMessage = MockResolveFailures.Count > maximumPrinted ? $"(logging first {maximumPrinted} issues)" : "";
+            string truncatedMessage = MockResolveFailures.Count > maximumPrinted ? $"(logging first {maximumPrinted.ToString()} issues)" : "";
 
-            Logger.LogWarning(sourceMod, $"{MockResolveFailures.Count} mocks {prefabNameMessage} could not be resolved. {truncatedMessage}".Replace("  ", " ").Trim());
+            Logger.LogWarning(sourceMod, $"{MockResolveFailures.Count.ToString()} mocks {prefabNameMessage} could not be resolved. {truncatedMessage}".Replace("  ", " ").Trim());
 
             foreach (var failure in MockResolveFailures.GetRange(0, maximumPrinted))
             {

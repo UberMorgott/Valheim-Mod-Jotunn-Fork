@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -249,11 +249,11 @@ namespace Jotunn.GUI
 
         private void ChangeSelectedColorKey(int value)
         {
-            if (colorKeyObjects.Count() > selectedColorKey)
+            if (colorKeyObjects.Count > selectedColorKey)
             {
                 colorKeyObjects[selectedColorKey].transform.GetChild(0).GetChild(0).GetComponent<Image>().color = Color.gray;
             }
-            if (alphaKeyObjects.Count() > 0)
+            if (alphaKeyObjects.Count > 0)
             {
                 alphaKeyObjects[selectedAlphaKey].transform.GetChild(0).GetChild(0).GetComponent<Image>().color = Color.gray;
             }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
@@ -165,12 +165,12 @@ namespace Jotunn.Managers
         ///     Valheim's rune-like font, bold faced.
         /// </summary>
         public Font NorseBold { get; private set; }
-        
+
         /// <summary>
         ///     Valheim's standard font as a TMPro FontAsset
         /// </summary>
         public TMP_FontAsset TMP_AveriaSansLibre { get; private set; }
-        
+
         /// <summary>
         ///     Valheim's rune-like font as a TMPro FontAsset
         /// </summary>
@@ -348,21 +348,28 @@ namespace Jotunn.Managers
         /// </summary>
         /// <param name="instructions"></param>
         /// <returns></returns>
+        private static readonly System.Reflection.MethodInfo MenuIsVisibleMethod = AccessTools.Method(typeof(Menu), nameof(Menu.IsVisible));
+
         private static IEnumerable<CodeInstruction> BlockUseTranspiler(IEnumerable<CodeInstruction> instructions)
         {
-            Label? jumpLabel = null;
-
-            return new CodeMatcher(instructions)
+            var matcher = new CodeMatcher(instructions)
                 .MatchForward(true,
-                    new CodeMatch(i => i.Calls(AccessTools.Method(typeof(Menu), nameof(Menu.IsVisible)))),
-                    new CodeMatch(i => i.Branches(out jumpLabel))
-                )
-                .Advance(1)
-                .InsertAndAdvance(
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(GUIManager), nameof(IsInputBlocked))),
-                    new CodeInstruction(OpCodes.Brtrue, jumpLabel)
-                )
-                .InstructionEnumeration();
+                    new CodeMatch(i => i.Calls(MenuIsVisibleMethod)),
+                    new CodeMatch(i => i.Branches(out _))
+                );
+
+            if (matcher.IsValid)
+            {
+                object jumpLabelOperand = matcher.Instruction.operand;
+                matcher
+                    .Advance(1)
+                    .InsertAndAdvance(
+                        new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(GUIManager), nameof(IsInputBlocked))),
+                        new CodeInstruction(OpCodes.Brtrue, jumpLabelOperand)
+                    );
+            }
+
+            return matcher.InstructionEnumeration();
         }
 
         /// <summary>
@@ -585,7 +592,7 @@ namespace Jotunn.Managers
             return CustomGUI;
         }
 
-        [Obsolete]
+        [Obsolete("Use OnCustomGUIAvailable instead.")]
         private void InvokeOnPixelFixCreated()
         {
             OnPixelFixCreated?.SafeInvoke();
@@ -661,7 +668,6 @@ namespace Jotunn.Managers
         /// <param name="onColorChanged">Event that gets called when the color gets modified</param>
         /// <param name="onColorSelected">Event that gets called when one of the buttons done or cancel get pressed</param>
         /// <param name="useAlpha">When set to false the colors used don't have an alpha channel</param>
-        /// <returns></returns>
         public void CreateColorPicker(
             Vector2 anchorMin, Vector2 anchorMax, Vector2 position,
             Color original, string message, ColorPicker.ColorEvent onColorChanged,
@@ -706,7 +712,6 @@ namespace Jotunn.Managers
         /// <param name="message">Display message</param>
         /// <param name="onGradientChanged">Event that gets called when the gradient gets modified</param>
         /// <param name="onGradientSelected">Event that gets called when one of the buttons done or cancel gets pressed</param>
-        /// <returns></returns>
         public void CreateGradientPicker(
             Vector2 anchorMin, Vector2 anchorMax, Vector2 position,
             Gradient original, string message, GradientPicker.GradientEvent onGradientChanged,

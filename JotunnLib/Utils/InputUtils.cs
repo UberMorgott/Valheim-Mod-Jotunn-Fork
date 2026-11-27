@@ -117,7 +117,7 @@ namespace Jotunn.Utils
                 case KeyCode.AltGr: return Key.AltGr;
 
                 default:
-                    Logger.LogWarning($"Key {key} not found in the new input system");
+                    Logger.LogWarning($"Key {EnumNameCache.GetName(key, (int)key)} not found in the new input system");
                     return Key.None;
             }
         }
@@ -188,7 +188,7 @@ namespace Jotunn.Utils
                 GamepadButton.ButtonSouth => GamepadInput.FaceButtonA,
                 GamepadButton.ButtonEast => GamepadInput.FaceButtonB,
                 GamepadButton.ButtonWest => GamepadInput.FaceButtonX,
-                GamepadButton.ButtonNorth => GamepadInput.FaceButtonY,   
+                GamepadButton.ButtonNorth => GamepadInput.FaceButtonY,
                 GamepadButton.LeftShoulder => GamepadInput.BumperL,
                 GamepadButton.RightShoulder => GamepadInput.BumperR,
                 GamepadButton.LeftTrigger => GamepadInput.TriggerL,

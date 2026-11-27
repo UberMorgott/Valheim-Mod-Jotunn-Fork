@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using HarmonyLib;
 using Jotunn.Entities;
@@ -39,7 +39,7 @@ namespace Jotunn.Configs
         // ///     When <see cref="MakeTameable"/> is true use this to also make the creature commandable.
         // /// </summary>
         // public bool MakeCommandable { get; set; }
-        
+
         /// <summary>
         ///     If set to true, <see cref="LevelEffects"/> stack the "EnableObject" action for all levels
         ///     instead of only activating the GameObject of the highest level matched.
@@ -139,14 +139,14 @@ namespace Jotunn.Configs
             }*/
 
             var drops = GetDrops().ToList();
-            if (drops.Any())
+            if (drops.Count > 0)
             {
                 var comp = prefab.GetOrAddComponent<CharacterDrop>();
                 comp.m_drops = drops;
             }
 
             var consumeItems = GetConsumeItems().ToList();
-            if (consumeItems.Any() && prefab.TryGetComponent(out MonsterAI ai))
+            if (consumeItems.Count > 0 && prefab.TryGetComponent(out MonsterAI ai))
             {
                 ai.m_consumeItems = consumeItems;
             }

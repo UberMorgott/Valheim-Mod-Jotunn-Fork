@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -166,7 +166,14 @@ namespace Jotunn.Entities
         /// <returns>true if the prefab is added as a custom creature to the <see cref="CreatureManager"/>.</returns>
         public static bool IsCustomCreature(string prefabName)
         {
-            return CreatureManager.Instance.Creatures.Any(x => x.Prefab.name == prefabName);
+            foreach (var creature in CreatureManager.Instance.Creatures)
+            {
+                if (creature.Prefab.name == prefabName)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <inheritdoc/>
@@ -191,7 +198,7 @@ namespace Jotunn.Entities
         {
             creatureConfig.Apply(Prefab);
 
-            FixConfig = creatureConfig.DropConfigs.Any() || creatureConfig.Consumables.Any();
+            FixConfig = creatureConfig.DropConfigs.Length > 0 || creatureConfig.Consumables.Length > 0;
             UseCumulativeLevelEffects = creatureConfig.UseCumulativeLevelEffects;
 
             Spawns.AddRange(creatureConfig.GetSpawns());

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,7 +14,7 @@ namespace Jotunn.Entities
     {
         /// <summary> Map that work as [language][token] = translation. </summary>
         internal Dictionary<string, Dictionary<string, string>> Map { get; }
-        
+
         private static HashSet<string> loggedInvalidTokens = new HashSet<string>();
 
         private static bool? _yamlDotNetAvailable;
@@ -209,7 +209,7 @@ namespace Jotunn.Entities
 
             if (fileContent is null)
             {
-                throw new ArgumentNullException(nameof(fileContent));
+                throw new InvalidOperationException($"Could not read localization file at '{path}'.");
             }
 
             var ext = Path.GetExtension(path).ToLowerInvariant();
@@ -244,11 +244,11 @@ namespace Jotunn.Entities
                 return;
             }
 
-            IDictionary<string, object> json;
+            Dictionary<string, object> json;
 
             try
             {
-                json = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, object>>(fileContent);
+                json = SimpleJson.SimpleJson.DeserializeObject<Dictionary<string, object>>(fileContent);
             }
             catch (Exception e)
             {

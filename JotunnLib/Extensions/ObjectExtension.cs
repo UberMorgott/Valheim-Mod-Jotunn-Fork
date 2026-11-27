@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 
 namespace Jotunn
 {
@@ -17,9 +17,13 @@ namespace Jotunn
             {
                 var output = $"{obj}";
                 var type = obj.GetType();
-                var publicFields = type.GetFields().Where(f => f.IsPublic);
+                var publicFields = type.GetFields();
                 foreach (var f in publicFields)
                 {
+                    if (!f.IsPublic)
+                    {
+                        continue;
+                    }
                     var value = f.GetValue(obj);
                     var valueString = value == null ? "null" : value.ToString();
                     output += $"\n {f.Name}: {valueString}";
