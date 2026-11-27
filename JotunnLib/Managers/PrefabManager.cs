@@ -369,17 +369,17 @@ namespace Jotunn.Managers
         /// <param name="gameObject"></param>
         public void RegisterToZNetScene(GameObject gameObject)
         {
+            string name = gameObject.name;
+
+            if (name.StartsWith(MockManager.JVLMockPrefix, StringComparison.Ordinal) || name.StartsWith(MockManager.LegacyMockPrefix, StringComparison.Ordinal))
+            {
+                return;
+            }
+
             ZNetScene znet = ZNetScene.instance;
 
             if (znet)
             {
-                string name = gameObject.name;
-
-                if (gameObject.name.StartsWith(MockManager.JVLMockPrefix))
-                {
-                    return;
-                }
-
                 int hash = name.GetStableHashCode();
 
                 if (znet.m_namedPrefabs.ContainsKey(hash))
@@ -399,22 +399,21 @@ namespace Jotunn.Managers
                     znet.m_namedPrefabs.Add(hash, gameObject);
                     Logger.LogDebug($"Added prefab {name}");
                 }
+            }
 
+            ObjectDB objectDB = ObjectDB.instance;
+
+            if (objectDB)
+            {
                 if (gameObject.TryGetComponent(out TerrainOp terrainOp))
                 {
-                    RegisterTerrainOp(terrainOp);
+                    RegisterTerrainOp(objectDB, terrainOp);
                 }
             }
         }
 
-        private static void RegisterTerrainOp(TerrainOp terrainOp)
+        private static void RegisterTerrainOp(ObjectDB objectDB, TerrainOp terrainOp)
         {
-            ObjectDB objectDB = ObjectDB.instance;
-            if (!objectDB)
-            {
-                return;
-            }
-
             int hash = objectDB.GetPrefabHash(terrainOp.gameObject);
             if (objectDB.m_terrainOpsByHash.TryGetValue(hash, out TerrainOp registeredTerrainOp))
             {

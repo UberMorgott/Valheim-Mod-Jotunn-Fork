@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using BepInEx;
 using BepInEx.Bootstrap;
 using HarmonyLib;
@@ -14,6 +14,7 @@ namespace Jotunn
     /// </summary>
     [BepInPlugin(ModGuid, ModName, Version)]
     [BepInDependency("com.bepis.bepinex.configurationmanager", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("lordrasmus.jotunnconfigmanager", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.maxsch.valheim.LocalizationCache", BepInDependency.DependencyFlags.SoftDependency)]
     [NetworkCompatibility(CompatibilityLevel.VersionCheckOnly, VersionStrictness.Patch)]
     public class Main : BaseUnityPlugin
@@ -21,7 +22,7 @@ namespace Jotunn
         /// <summary>
         ///     The current version of the Jotunn library.
         /// </summary>
-        public const string Version = "2.30.2";
+        public const string Version = "2.30.3";
 
         /// <summary>
         ///     The name of the library.

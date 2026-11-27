@@ -32,11 +32,13 @@ namespace Jotunn.Managers
             ((IManager)this).Init();
         }
 
+        internal const string LegacyMockPrefix = "VLmock_";
+
         /// <summary>
         ///     Legacy ValheimLib prefix used by the Mock System to recognize Mock gameObject that must be replaced at some point.
         /// </summary>
         [Obsolete("Legacy ValheimLib mock prefix. Use JVLMockPrefix \"JVLmock_\" instead.")]
-        public const string MockPrefix = "VLmock_";
+        public const string MockPrefix = LegacyMockPrefix;
 
         /// <summary>
         ///     Prefix used by the Mock System to recognize Mock gameObject that must be replaced at some point.

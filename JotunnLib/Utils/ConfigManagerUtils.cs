@@ -30,6 +30,10 @@ namespace Jotunn.Utils
             {
                 BindPlugin(configManagerInfo.Instance);
             }
+            else if (Chainloader.PluginInfos.TryGetValue("lordrasmus.jotunnconfigmanager", out configManagerInfo) && configManagerInfo.Instance)
+            {
+                BindPlugin(configManagerInfo.Instance);
+            }
         }
 
         private static void BindPlugin(BaseUnityPlugin plugin)
