@@ -1,3 +1,4 @@
+using System;
 using Jotunn.Managers;
 using Xunit;
 
@@ -11,7 +12,7 @@ namespace Jotunn.Utils
             private readonly string endpoint;
             public FakeSocket(string endpoint) => this.endpoint = endpoint;
             public override bool Equals(object obj) => obj is FakeSocket other && other.endpoint == endpoint;
-            public override int GetHashCode() => endpoint.GetHashCode();
+            public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(endpoint);
             public string GetEndPointString() => endpoint;
             public bool IsConnected() => true;
             public void Send(ZPackage pkg) { }

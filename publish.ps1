@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory)]
     [ValidateSet('Debug','Release')]
     [System.String]$Target,

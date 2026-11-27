@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using Jotunn.Configs;
 using Jotunn.Managers;
@@ -40,7 +40,7 @@ namespace Jotunn.Entities
         ///     Indicator if references from <see cref="Entities.Mock{T}"/>s will be replaced at runtime.
         /// </summary>
         public bool FixReference { get; set; }
-        
+
         /// <summary>
         ///     Indicator if location is added from SoftReferenceableAssets.<br />
         ///     Used to delay mocking prefabs until ZoneSystem.SpawnLocation()
@@ -113,7 +113,7 @@ namespace Jotunn.Entities
 
             FixReference = fixReference;
         }
-        
+
         /// <summary>
         ///     Custom location from a prefab with a <see cref="LocationConfig"/> attached. Using SoftReference system.
         /// </summary>
@@ -131,10 +131,10 @@ namespace Jotunn.Entities
             _locationConfig = locationConfig;
             var parent = ZoneManager.Instance.LocationContainer.transform;
             AssetManager.Instance.ResolveMocksOnLoad(softReferencePrefab, parent, OnLocationResolve);
-            Name = softReferencePrefab.Name;
+            Name = softReferencePrefab.name;
             ZoneLocation = locationConfig.GetZoneLocation();
             ZoneLocation.m_prefab = softReferencePrefab;
-            ZoneLocation.m_prefabName = softReferencePrefab.Name;
+            ZoneLocation.m_prefabName = softReferencePrefab.name;
             FixReference = fixReference;
             SoftReference = true;
         }
@@ -172,7 +172,7 @@ namespace Jotunn.Entities
         {
             return ZoneManager.Instance.Locations.ContainsKey(prefabName);
         }
-        
+
         /// <inheritdoc/>
         public override string ToString()
         {

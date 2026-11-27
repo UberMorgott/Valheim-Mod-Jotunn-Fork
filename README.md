@@ -1,6 +1,6 @@
 > **Fork of [Jötunn](https://github.com/Valheim-Modding/Jotunn) by Valheim-Modding, maintained by UberMorgott.**
 > Stock Jötunn 2.30.2 (version, GUID and DLL name unchanged) plus one fix: no "Ambiguous asset name" warnings for Deep North assets.
-> Upstream PR: https://github.com/Valheim-Modding/Jotunn/pull/507. Drop this fork and return to stock Jötunn once upstream releases the fix.
+> Upstream PR: [Valheim-Modding/Jotunn#507](https://github.com/Valheim-Modding/Jotunn/pull/507). Drop this fork and return to stock Jötunn once upstream releases the fix.
 > Release tags: `v<upstream>-morgott.<n>`.
 
 # Jötunn, the Valheim Library

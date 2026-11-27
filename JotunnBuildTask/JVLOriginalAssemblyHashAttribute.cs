@@ -1,5 +1,9 @@
-namespace JotunnBuildTask {
-    public class JVLOriginalAssemblyHashAttribute
+using System;
+
+namespace JotunnBuildTask
+{
+    [AttributeUsage(AttributeTargets.Assembly)]
+    public class JVLOriginalAssemblyHashAttribute : Attribute
     {
         public string hash;
 
@@ -9,3 +13,4 @@ namespace JotunnBuildTask {
         }
     }
 }
+

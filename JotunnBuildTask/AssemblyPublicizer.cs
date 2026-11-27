@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Mono.Cecil;
+using Mono.Collections.Generic;
 
 namespace JotunnBuildTask
 {
@@ -47,12 +47,9 @@ namespace JotunnBuildTask
             // Get all type definitions
             var types = GetTypeDefinitions(assemblyDefinition.MainModule);
 
-            var methods = types.SelectMany(x => x.Methods).Where(x => x.IsPublic == false);
-            var fields = types.SelectMany(x => x.Fields).Where(x => x.IsPublic == false);
-            var events = types.SelectMany(x => x.Events);
-
-            foreach (var type in types)
+            for (int i = 0; i < types.Count; i++)
             {
+                var type = types[i];
                 if (type.IsNested)
                 {
                     type.IsNestedPublic = true;
@@ -63,22 +60,37 @@ namespace JotunnBuildTask
                 }
             }
 
-            foreach (var method in methods)
+            var eventNames = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < types.Count; i++)
             {
-                method.IsPublic = true;
-            }
-
-            List<string> eventNames = new List<string>();
-            foreach (var ev in events)
-            {
-                eventNames.Add(ev.Name);
-            }
-
-            foreach (var field in fields)
-            {
-                if (!eventNames.Contains(field.Name))
+                var type = types[i];
+                var methods = type.Methods;
+                for (int j = 0; j < methods.Count; j++)
                 {
-                    field.IsPublic = true;
+                    var method = methods[j];
+                    if (!method.IsPublic)
+                    {
+                        method.IsPublic = true;
+                    }
+                }
+
+                var events = type.Events;
+                for (int j = 0; j < events.Count; j++)
+                {
+                    eventNames.Add(events[j].Name);
+                }
+            }
+
+            for (int i = 0; i < types.Count; i++)
+            {
+                var fields = types[i].Fields;
+                for (int j = 0; j < fields.Count; j++)
+                {
+                    var field = fields[j];
+                    if (!field.IsPublic && !eventNames.Contains(field.Name))
+                    {
+                        field.IsPublic = true;
+                    }
                 }
             }
 
@@ -108,24 +120,34 @@ namespace JotunnBuildTask
         /// </summary>
         /// <param name="moduleDefinition"></param>
         /// <returns></returns>
-        private static IEnumerable<TypeDefinition> GetTypeDefinitions(ModuleDefinition moduleDefinition)
+        private static List<TypeDefinition> GetTypeDefinitions(ModuleDefinition moduleDefinition)
         {
-            return GetTypeDefinitionsRecursive(moduleDefinition.Types);
+            var result = new List<TypeDefinition>();
+            CollectTypeDefinitions(moduleDefinition.Types, result);
+            return result;
         }
 
         /// <summary>
         ///     Get all type definitions recursive
         /// </summary>
         /// <param name="typeDefinitions"></param>
-        /// <returns></returns>
-        private static IEnumerable<TypeDefinition> GetTypeDefinitionsRecursive(IEnumerable<TypeDefinition> typeDefinitions)
+        /// <param name="result"></param>
+        private static void CollectTypeDefinitions(Collection<TypeDefinition> typeDefinitions, List<TypeDefinition> result)
         {
-            if (typeDefinitions?.Count() == 0)
+            if (typeDefinitions == null || typeDefinitions.Count == 0)
             {
-                return new List<TypeDefinition>();
+                return;
             }
 
-            return typeDefinitions.Concat(GetTypeDefinitionsRecursive(typeDefinitions.SelectMany(x => x.NestedTypes)));
+            for (int i = 0; i < typeDefinitions.Count; i++)
+            {
+                var type = typeDefinitions[i];
+                result.Add(type);
+                if (type.HasNestedTypes)
+                {
+                    CollectTypeDefinitions(type.NestedTypes, result);
+                }
+            }
         }
     }
 }
